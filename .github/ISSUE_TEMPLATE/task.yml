@@ -1,0 +1,30 @@
+name: "Task"
+description: "Kleine operative Aufgabe ohne vollständige User Story"
+labels: ["type:task"]
+body:
+  - type: textarea
+    id: task_description
+    attributes:
+      label: "Aufgabe"
+      description: "Was ist zu tun?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: checklist
+    attributes:
+      label: "Checklist / Schritte"
+      description: "Einzelne Schritte zur Erledigung (optional)."
+      placeholder: |
+        - [ ] …
+        - [ ] …
+    validations:
+      required: false
+
+  - type: textarea
+    id: done_criteria
+    attributes:
+      label: "Done-Kriterien"
+      description: "Wann ist diese Aufgabe abgeschlossen?"
+    validations:
+      required: true

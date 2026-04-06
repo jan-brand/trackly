@@ -1,0 +1,46 @@
+name: "Tech Debt / Refactor"
+description: "Technische Schulden abbauen oder Code refaktorieren"
+labels: ["type:techdebt"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: "Kontext"
+      description: "Warum ist dieser Tech Debt entstanden? Was ist der aktuelle Zustand?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: "Ziel"
+      description: "Was soll nach dem Refactoring besser sein?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected_modules
+    attributes:
+      label: "Betroffene Module / Dateien"
+      description: "Welche Teile des Codes sind betroffen?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: risk_if_not_done
+    attributes:
+      label: "Risiko wenn nicht gemacht"
+      description: "Was passiert, wenn dieser Tech Debt bestehen bleibt?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: "Definition of Done"
+      description: "Wann gilt dieses Ticket als abgeschlossen?"
+      placeholder: |
+        - [ ] …
+        - [ ] …
+    validations:
+      required: true

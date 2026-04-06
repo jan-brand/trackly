@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Dokumentation
+    url: https://github.com/jan-brand/trackly/blob/main/CONTRIBUTING.md
+    about: "Lies die Contribution-Richtlinien, bevor du ein Issue erstellst."

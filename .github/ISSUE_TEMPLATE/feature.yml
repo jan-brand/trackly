@@ -1,0 +1,71 @@
+name: "Feature (User Story)"
+description: "Neues Feature oder User Story für Trackly"
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem / Warum"
+      description: "Welches Problem löst dieses Feature? Wer hat dieses Problem?"
+      placeholder: "Als [Nutzerrolle] habe ich das Problem, dass …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: "Ziel / Nutzen"
+      description: "Was soll nach Umsetzung möglich sein? Welchen Mehrwert bringt es?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: "Scope (was ist drin)"
+      description: "Was gehört explizit zu diesem Feature?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: "Out of scope (was ist nicht drin)"
+      description: "Was gehört bewusst nicht zu diesem Feature?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Akzeptanzkriterien"
+      description: "Wann gilt das Feature als fertig? Bitte als Bullet-Liste."
+      placeholder: |
+        - [ ] …
+        - [ ] …
+    validations:
+      required: true
+
+  - type: textarea
+    id: ux_notes
+    attributes:
+      label: "UX / Copy-Notizen"
+      description: "Hinweise zu UI, Texten, Meldungen oder Copy."
+    validations:
+      required: false
+
+  - type: textarea
+    id: tech_notes
+    attributes:
+      label: "Tech-Notizen / betroffene Module"
+      description: "Hinweise zur Implementierung, betroffene Services, Dateien oder Abhängigkeiten."
+    validations:
+      required: false
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: "Risiken / Offene Fragen"
+      description: "Was könnte schiefgehen? Was ist noch unklar?"
+    validations:
+      required: false

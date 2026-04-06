@@ -1,0 +1,106 @@
+# Trackly Label-Definitionen
+#
+# Diese Datei dokumentiert alle GitHub-Labels für das Trackly-Repository.
+# Labels müssen einmalig über die GitHub-Oberfläche oder die GitHub CLI angelegt werden:
+#
+#   gh label create "type:feature" --color "0075ca" --description "Neues Feature oder User Story"
+#
+# Oder alle auf einmal mit dem Skript: docs/setup-labels.sh
+
+labels:
+  # ── Typ (genau ein Label pro Issue) ───────────────────────────────────────
+  - name: "type:feature"
+    color: "0075ca"
+    description: "Neues Feature oder User Story"
+
+  - name: "type:bug"
+    color: "d73a4a"
+    description: "Unerwartetes Verhalten oder Fehler"
+
+  - name: "type:techdebt"
+    color: "e4e669"
+    description: "Technische Schulden oder Refactoring"
+
+  - name: "type:spike"
+    color: "cc317c"
+    description: "Recherche oder Entscheidungsfindung"
+
+  - name: "type:task"
+    color: "bfd4f2"
+    description: "Kleine operative Aufgabe"
+
+  # ── Priorität ─────────────────────────────────────────────────────────────
+  - name: "prio:high"
+    color: "b60205"
+    description: "Hohe Priorität"
+
+  - name: "prio:medium"
+    color: "fbca04"
+    description: "Mittlere Priorität"
+
+  - name: "prio:low"
+    color: "c2e0c6"
+    description: "Niedrige Priorität"
+
+  # ── Status ────────────────────────────────────────────────────────────────
+  - name: "status:triage"
+    color: "ededed"
+    description: "Noch nicht bewertet"
+
+  - name: "status:ready"
+    color: "0e8a16"
+    description: "Bereit zur Umsetzung (DoR erfüllt)"
+
+  - name: "status:blocked"
+    color: "e11d48"
+    description: "Blockiert durch externe Abhängigkeit"
+
+  # ── Area / Modul ──────────────────────────────────────────────────────────
+  - name: "area:auth"
+    color: "f9d0c4"
+    description: "Authentifizierung & Session"
+
+  - name: "area:time-entries"
+    color: "f9d0c4"
+    description: "Zeiterfassung (CRUD, Buchungen)"
+
+  - name: "area:approvals"
+    color: "f9d0c4"
+    description: "Freigabe-Workflow"
+
+  - name: "area:clarifications"
+    color: "f9d0c4"
+    description: "Rückfragen & Klärungs-Workflow"
+
+  - name: "area:export"
+    color: "f9d0c4"
+    description: "CSV/PDF-Export"
+
+  - name: "area:settings"
+    color: "f9d0c4"
+    description: "Einstellungen & Konfiguration"
+
+  - name: "area:users"
+    color: "f9d0c4"
+    description: "Nutzerverwaltung"
+
+  - name: "area:mail-outbox"
+    color: "f9d0c4"
+    description: "Mail-Versand & Templates"
+
+  - name: "area:ui"
+    color: "f9d0c4"
+    description: "UI, Templates, CSS"
+
+  - name: "area:infra"
+    color: "f9d0c4"
+    description: "Logging, Security, Config, Infra"
+
+  # ── Meta ──────────────────────────────────────────────────────────────────
+  - name: "good first issue"
+    color: "7057ff"
+    description: "Gut geeignet für Einstieg"
+
+  - name: "breaking-change"
+    color: "b60205"
+    description: "Bricht bestehende Schnittstellen oder Verhalten"

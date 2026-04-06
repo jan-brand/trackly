@@ -1,0 +1,72 @@
+name: "Bug"
+description: "Fehler oder unerwartetes Verhalten melden"
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: "Ist-Verhalten"
+      description: "Was passiert tatsächlich?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: "Soll-Verhalten"
+      description: "Was sollte stattdessen passieren?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro_steps
+    attributes:
+      label: "Repro Steps"
+      description: "Wie lässt sich der Fehler reproduzieren?"
+      placeholder: |
+        1. …
+        2. …
+        3. Fehler tritt auf
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: "Erwartete Häufigkeit"
+      description: "Wie oft tritt der Fehler auf?"
+      options:
+        - "immer"
+        - "manchmal"
+        - "einmalig"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: "Impact"
+      description: "Wie stark ist die Auswirkung auf Nutzer?"
+      options:
+        - "high"
+        - "medium"
+        - "low"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: "Environment"
+      description: "Browser, OS, PHP-Version, APP_ENV etc."
+      placeholder: "z. B. Chrome 123 / Ubuntu 22.04 / PHP 8.2 / prod"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs / Screenshots"
+      description: "Relevante Log-Einträge, Fehlermeldungen oder Screenshots einfügen."
+    validations:
+      required: false
