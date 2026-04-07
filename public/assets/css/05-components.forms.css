@@ -1,0 +1,165 @@
+/*
+ * 05-components.forms.css – Form component (c-form)
+ */
+
+/* ── Form wrapper ─────────────────────────────────────── */
+
+.c-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ── Form group: label + control ─────────────────────── */
+
+.c-form__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* ── Label ────────────────────────────────────────────── */
+
+.c-form__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.c-form__label--required::after {
+  content: ' *';
+  color: var(--color-danger-500);
+}
+
+/* ── Hint text ────────────────────────────────────────── */
+
+.c-form__hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── Error message ────────────────────────────────────── */
+
+.c-form__error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-700);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── Controls: input, select, textarea ───────────────── */
+
+.c-form__input,
+.c-form__select,
+.c-form__textarea,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--duration-fast) var(--easing-standard),
+    box-shadow   var(--duration-fast) var(--easing-standard);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.c-form__input:hover,
+.c-form__select:hover,
+.c-form__textarea:hover,
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+input[type="search"]:hover,
+input[type="url"]:hover,
+input[type="tel"]:hover,
+input[type="number"]:hover,
+input[type="date"]:hover,
+input[type="time"]:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--color-neutral-400);
+}
+
+.c-form__input:focus,
+.c-form__select:focus,
+.c-form__textarea:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+input[type="url"]:focus,
+input[type="tel"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 var(--focus-ring-width) color-mix(in srgb, var(--color-primary-400) 35%, transparent);
+}
+
+/* ── Error state ──────────────────────────────────────── */
+
+.c-form__input.is-invalid,
+.c-form__select.is-invalid,
+.c-form__textarea.is-invalid {
+  border-color: var(--color-danger-500);
+}
+
+.c-form__input.is-invalid:focus,
+.c-form__select.is-invalid:focus,
+.c-form__textarea.is-invalid:focus {
+  box-shadow: 0 0 0 var(--focus-ring-width) color-mix(in srgb, var(--color-danger-500) 25%, transparent);
+}
+
+/* ── Textarea ─────────────────────────────────────────── */
+
+.c-form__textarea,
+textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+/* ── Checkbox & radio ─────────────────────────────────── */
+
+.c-form__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.c-form__check input[type="checkbox"],
+.c-form__check input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--color-primary-600);
+}
+
+/* ── Actions row ──────────────────────────────────────── */
+
+.c-form__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}

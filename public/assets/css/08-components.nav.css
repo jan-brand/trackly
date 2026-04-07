@@ -1,0 +1,172 @@
+/*
+ * 08-components.nav.css – Navigation component (c-nav)
+ */
+
+/* ── Site nav bar ─────────────────────────────────────── */
+
+.c-nav {
+  display: flex;
+  align-items: center;
+  height: 3.5rem;   /* 56 px */
+  padding-inline: var(--space-6);
+  gap: var(--space-6);
+}
+
+/* ── Brand / logo ─────────────────────────────────────── */
+
+.c-nav__brand {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary-700);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+
+.c-nav__brand:hover {
+  color: var(--color-primary-800);
+}
+
+.c-nav__brand:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Link list ────────────────────────────────────────── */
+
+.c-nav__links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  list-style: none;
+  flex: 1;
+}
+
+.c-nav__link {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-base);
+  transition:
+    background-color var(--duration-fast) var(--easing-standard),
+    color            var(--duration-fast) var(--easing-standard);
+}
+
+.c-nav__link:hover {
+  background-color: var(--color-neutral-100);
+  color:            var(--color-text);
+}
+
+.c-nav__link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Active state – text label always present (not colour only) */
+.c-nav__link.is-active,
+.c-nav__link[aria-current="page"] {
+  background-color: var(--color-primary-50);
+  color:            var(--color-primary-700);
+  font-weight:      var(--font-weight-semibold);
+}
+
+/* ── Actions slot (right-aligned) ─────────────────────── */
+
+.c-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+/* ── User menu trigger ────────────────────────────────── */
+
+.c-nav__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--easing-standard),
+    border-color     var(--duration-fast) var(--easing-standard);
+}
+
+.c-nav__user:hover {
+  background-color: var(--color-neutral-100);
+  border-color:     var(--color-border);
+}
+
+.c-nav__user:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ── Mobile hamburger button ──────────────────────────── */
+
+.c-nav__toggle {
+  display: none;
+  padding: var(--space-2);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.c-nav__toggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (max-width: 48rem) {
+  .c-nav {
+    flex-wrap: wrap;
+    height: auto;
+    padding-block: var(--space-3);
+  }
+
+  .c-nav__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+  }
+
+  .c-nav__links {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    padding-bottom: var(--space-3);
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--space-2);
+  }
+
+  .c-nav__links.is-open {
+    display: flex;
+  }
+
+  .c-nav__link {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .c-nav__actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-3);
+  }
+}

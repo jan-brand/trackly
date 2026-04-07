@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Http\BadRequestException;
+use App\Http\ForbiddenException;
 use App\Http\Response;
 use App\Http\Router;
+use App\Http\View\ViewRenderer;
 use App\Security\Csrf;
 use App\Security\CsrfViolationException;
 use App\Support\Env;
@@ -14,25 +17,18 @@ Env::load(dirname(__DIR__) . '/.env');
 
 session_start();
 
+$viewRenderer = new ViewRenderer(dirname(__DIR__) . '/src/Views');
+
 /**
  * Render a view template and wrap it in the layout.
  *
- * @param string $view  Relative path inside src/Views/ without .php extension
+ * @param string               $view  Relative path inside src/Views/ without .php extension
  * @param array<string, mixed> $data  Variables to extract into the view scope
  */
 function renderView(string $view, array $data = []): string
 {
-    $viewPath = dirname(__DIR__) . '/src/Views/' . $view . '.php';
-
-    extract($data);
-
-    ob_start();
-    require $viewPath;
-    $content = ob_get_clean();
-
-    ob_start();
-    require dirname(__DIR__) . '/src/Views/layout.php';
-    return ob_get_clean();
+    global $viewRenderer;
+    return $viewRenderer->render($view, $data);
 }
 
 $router = new Router();
@@ -43,6 +39,12 @@ $path   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
 try {
     $response = $router->dispatch($method, $path);
+} catch (BadRequestException) {
+    $body = renderView('errors/400');
+    $response = new Response(400, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+} catch (ForbiddenException) {
+    $body = renderView('errors/403');
+    $response = new Response(403, ['Content-Type' => 'text/html; charset=utf-8'], $body);
 } catch (CsrfViolationException) {
     $body = renderView('errors/403');
     $response = new Response(403, ['Content-Type' => 'text/html; charset=utf-8'], $body);
