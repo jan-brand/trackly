@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Controllers\AdminController;
 use App\Controllers\AuthController;
 use App\Controllers\HomeController;
 use App\Http\BadRequestException;
@@ -28,6 +29,10 @@ $router->post('/login', function (): Response {
 
 $router->post('/logout', function (): Response {
     return (new AuthController())->doLogout();
+});
+
+$router->get('/admin/settings', function (): Response {
+    return (new AdminController())->settings();
 });
 
 $router->get('/boom', function (): Response {

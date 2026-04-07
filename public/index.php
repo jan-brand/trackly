@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\BadRequestException;
+use App\Http\ForbiddenException;
 use App\Http\Response;
 use App\Http\Router;
 use App\Http\View\ViewRenderer;
@@ -41,6 +42,9 @@ try {
 } catch (BadRequestException) {
     $body = renderView('errors/400');
     $response = new Response(400, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+} catch (ForbiddenException) {
+    $body = renderView('errors/403');
+    $response = new Response(403, ['Content-Type' => 'text/html; charset=utf-8'], $body);
 } catch (CsrfViolationException) {
     $body = renderView('errors/403');
     $response = new Response(403, ['Content-Type' => 'text/html; charset=utf-8'], $body);

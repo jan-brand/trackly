@@ -19,6 +19,7 @@ function simulateRequest(
     string $uri,
     array $post = [],
     array $server = [],
+    array $session = [],
 ): array {
     // Reset superglobals
     $_SERVER = array_merge([
@@ -30,7 +31,7 @@ function simulateRequest(
 
     $_POST    = $post;
     $_GET     = [];
-    $_SESSION = [];
+    $_SESSION = $session;
     $_ENV     = $_ENV ?? [];
 
     // Capture headers via a custom header list
@@ -62,6 +63,9 @@ function simulateRequest(
     } catch (\App\Http\BadRequestException) {
         $body = renderViewTest('errors/400');
         $response = new \App\Http\Response(400, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+    } catch (\App\Http\ForbiddenException) {
+        $body = renderViewTest('errors/403');
+        $response = new \App\Http\Response(403, ['Content-Type' => 'text/html; charset=utf-8'], $body);
     } catch (\App\Security\CsrfViolationException) {
         $body = renderViewTest('errors/403');
         $response = new \App\Http\Response(403, ['Content-Type' => 'text/html; charset=utf-8'], $body);
