@@ -31,7 +31,7 @@ class Fixtures
 
         $stmt->execute([
             ':email'  => $email,
-            ':hash'   => password_hash($password, PASSWORD_BCRYPT),
+            ':hash'   => password_hash($password, PASSWORD_DEFAULT),
             ':active' => $active ? 1 : 0,
         ]);
 
@@ -49,7 +49,7 @@ class Fixtures
 
         $stmt = $pdo->prepare('SELECT id FROM roles WHERE `key` = :key LIMIT 1');
         $stmt->execute([':key' => $roleKey]);
-        $role = $stmt->fetch();
+        $role = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if ($role === false) {
             throw new \RuntimeException("Role key '{$roleKey}' not found. Did you run the role seeds?");
