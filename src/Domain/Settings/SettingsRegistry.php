@@ -84,6 +84,28 @@ final class SettingsRegistry
                 default: '22:00',
                 regex:   '/^\d{2}:\d{2}$/',
             ),
+            // ----------------------------------------------------------------
+            // Tracking behaviour (bool examples)
+            // ----------------------------------------------------------------
+            new SettingDefinition(
+                key:     'tracking.require_break_confirmation',
+                type:    'bool',
+                default: false,
+            ),
+            new SettingDefinition(
+                key:     'tracking.allow_retroactive_entries',
+                type:    'bool',
+                default: true,
+            ),
+            // ----------------------------------------------------------------
+            // Youth work category (enum example)
+            // ----------------------------------------------------------------
+            new SettingDefinition(
+                key:          'youth.work_category',
+                type:         'enum',
+                default:      'standard',
+                enumOptions:  ['light', 'standard', 'heavy'],
+            ),
         );
     }
 
