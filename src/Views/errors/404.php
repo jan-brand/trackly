@@ -1,4 +1,4 @@
-<?php declare(strict_types=1); $title = '404 – Nicht gefunden'; $hideNav = true; ?>
+<?php declare(strict_types=1); $title = '404 – Nicht gefunden'; ?>
 <div class="l-center">
     <div class="l-wrapper l-wrapper--narrow u-text-center">
         <div class="l-stack">

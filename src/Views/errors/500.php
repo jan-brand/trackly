@@ -1,4 +1,4 @@
-<?php declare(strict_types=1); $title = '500 – Fehler'; $hideNav = true; ?>
+<?php declare(strict_types=1); $title = '500 – Fehler'; ?>
 <div class="l-center">
     <div class="l-wrapper l-wrapper--narrow u-text-center">
         <div class="l-stack">
