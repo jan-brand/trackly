@@ -6,7 +6,7 @@ return function (PDO $pdo): void {
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS settings_audit_log (
             `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `actor_user_id`   BIGINT          NOT NULL,
+            `actor_user_id`   INT UNSIGNED    NOT NULL,
             `action`          VARCHAR(50)     NOT NULL,
             `reason`          TEXT            NOT NULL,
             `old_value_json`  JSON            NULL,
