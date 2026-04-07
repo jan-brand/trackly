@@ -9,7 +9,8 @@ return function (PDO $pdo): void {
             `value_json`        JSON         NOT NULL,
             `updated_by_user_id` BIGINT      NOT NULL,
             `updated_at`        DATETIME     NOT NULL,
-            PRIMARY KEY (`key`)
+            PRIMARY KEY (`key`),
+            CONSTRAINT fk_settings_user FOREIGN KEY (`updated_by_user_id`) REFERENCES `users`(`id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
 };

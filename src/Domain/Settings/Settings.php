@@ -66,7 +66,8 @@ final class Settings
             foreach ($stmt->fetchAll() as $row) {
                 $key = $row['key'];
                 if ($this->registry->has($key)) {
-                    $values[$key] = json_decode((string) $row['value_json'], true);
+                    $decoded = json_decode((string) $row['value_json'], true, 512, JSON_THROW_ON_ERROR);
+                    $values[$key] = $decoded;
                 }
             }
         }
