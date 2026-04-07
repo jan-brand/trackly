@@ -76,10 +76,11 @@ final class SettingsWriter
             // ----------------------------------------------------------------
             $this->pdo->prepare(
                 'INSERT INTO settings_audit_log
-                     (`changed_by_user_id`, `reason`, `snapshot_old`, `snapshot_new`, `created_at`)
-                 VALUES (:user_id, :reason, :old, :new, :now)'
+                     (`actor_user_id`, `action`, `reason`, `old_value_json`, `new_value_json`, `created_at`)
+                 VALUES (:user_id, :action, :reason, :old, :new, :now)'
             )->execute([
                 ':user_id' => $userId,
+                ':action'  => 'update',
                 ':reason'  => $reason,
                 ':old'     => json_encode($oldSnapshot, JSON_THROW_ON_ERROR),
                 ':new'     => json_encode($newSnapshot, JSON_THROW_ON_ERROR),

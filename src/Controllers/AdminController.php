@@ -86,7 +86,7 @@ class AdminController
         $writer = new SettingsWriter(Db::pdo(), $registry);
         $writer->save((int) Auth::userId(), $reason, $result->values);
 
-        Flash::addSuccess('Einstellungen wurden gespeichert.');
+        Flash::addSuccess('Einstellungen gespeichert.');
 
         return new Response(303, ['Location' => '/admin/settings'], '');
     }

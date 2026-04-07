@@ -39,6 +39,56 @@ class AdminSettingsPostTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // S1.4a: CSRF error → 403
+    // -------------------------------------------------------------------------
+
+    public function testCsrfViolationReturns403(): void
+    {
+        // Set a valid token in session but send a *wrong* token in POST body.
+        $_SESSION['__csrf_token'] = bin2hex(random_bytes(16));
+
+        $result = simulateRequest(
+            'POST',
+            '/admin/settings',
+            array_merge(
+                $this->buildPayload('wrong-token', 'Valid reason here'),
+                ['csrf_token' => 'wrong-token'],
+            ),
+            [],
+            [
+                'user_id'      => 1,
+                '__user_roles' => ['admin'],
+                '__csrf_token' => bin2hex(random_bytes(16)), // different from POST
+            ],
+        );
+
+        $this->assertSame(403, $result['status']);
+    }
+
+    // -------------------------------------------------------------------------
+    // S1.4a: RBAC error (non-admin) → 403
+    // -------------------------------------------------------------------------
+
+    public function testNonAdminReturns403(): void
+    {
+        $csrfToken = $this->setCsrfToken();
+
+        $result = simulateRequest(
+            'POST',
+            '/admin/settings',
+            $this->buildPayload($csrfToken, 'Valid reason here'),
+            [],
+            [
+                'user_id'      => 2,
+                '__user_roles' => ['employee'],
+                '__csrf_token' => $csrfToken,
+            ],
+        );
+
+        $this->assertSame(403, $result['status']);
+    }
+
+    // -------------------------------------------------------------------------
     // Must-have: 1 save → exactly 1 audit row
     // -------------------------------------------------------------------------
 
@@ -68,6 +118,35 @@ class AdminSettingsPostTest extends TestCase
             ->fetchColumn();
 
         $this->assertSame(1, $count);
+    }
+
+    // -------------------------------------------------------------------------
+    // S1.4a: success flash message exact text
+    // -------------------------------------------------------------------------
+
+    public function testSuccessFlashMessageIsExact(): void
+    {
+        $csrfToken = $this->setCsrfToken();
+
+        $result = dispatch(
+            'POST',
+            '/admin/settings',
+            $this->buildPayload($csrfToken, 'Begründung für Test'),
+            [
+                'user_id'      => 1,
+                '__user_roles' => ['admin'],
+                '__csrf_token' => $csrfToken,
+            ],
+        );
+
+        $this->assertSame(303, $result['status']);
+
+        $flash = $result['session']['__flash'] ?? [];
+        $this->assertContains(
+            'Einstellungen gespeichert.',
+            $flash['success'] ?? [],
+            'Flash success message must be exactly "Einstellungen gespeichert."',
+        );
     }
 
     /**
@@ -222,12 +301,13 @@ class AdminSettingsPostTest extends TestCase
 
         $pdo->exec("
             CREATE TABLE settings_audit_log (
-                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-                changed_by_user_id   INTEGER NOT NULL,
-                reason               TEXT    NOT NULL,
-                snapshot_old         TEXT    NOT NULL,
-                snapshot_new         TEXT    NOT NULL,
-                created_at           TEXT    NOT NULL
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                actor_user_id    INTEGER NOT NULL,
+                action           TEXT    NOT NULL,
+                reason           TEXT    NOT NULL,
+                old_value_json   TEXT    NULL,
+                new_value_json   TEXT    NOT NULL,
+                created_at       TEXT    NOT NULL
             )
         ");
 
