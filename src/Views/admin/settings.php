@@ -62,7 +62,7 @@ $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 
                 ?>
                 <div class="c-form-group u-mb-3">
                     <label class="c-label" for="<?= $esc($fieldId) ?>">
-                        <?= $esc($def->key) ?>
+                        <?= $esc($def->label ?? $def->key) ?>
                         <?php if ($def->type === 'int' && $def->min !== null && $def->max !== null): ?>
                             <span class="c-label__hint">(<?= $esc($def->min) ?>–<?= $esc($def->max) ?>)</span>
                         <?php endif; ?>
@@ -76,9 +76,9 @@ $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 
 
                     <?php elseif ($def->type === 'enum' && $def->enumOptions !== null): ?>
                         <select class="<?= $inputClass ?>" id="<?= $esc($fieldId) ?>" name="<?= $esc($fieldName) ?>">
-                            <?php foreach ($def->enumOptions as $option): ?>
+                            <?php foreach ($def->enumOptions as $i => $option): ?>
                                 <option value="<?= $esc($option) ?>"<?= $currentVal === $option ? ' selected' : '' ?>>
-                                    <?= $esc($option) ?>
+                                    <?= $esc($def->enumLabels[$i] ?? $option) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -92,6 +92,15 @@ $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 
                             value="<?= $esc($currentVal) ?>"
                             <?= $def->min !== null ? ' min="' . $esc($def->min) . '"' : '' ?>
                             <?= $def->max !== null ? ' max="' . $esc($def->max) . '"' : '' ?>
+                        >
+
+                    <?php elseif ($def->uiType === 'time'): ?>
+                        <input
+                            class="<?= $inputClass ?>"
+                            type="time"
+                            id="<?= $esc($fieldId) ?>"
+                            name="<?= $esc($fieldName) ?>"
+                            value="<?= $esc($currentVal) ?>"
                         >
 
                     <?php else: ?>
