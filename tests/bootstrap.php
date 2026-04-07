@@ -84,14 +84,11 @@ function simulateRequest(
  */
 function renderViewTest(string $view, array $data = []): string
 {
-    $viewPath = dirname(__DIR__) . '/src/Views/' . $view . '.php';
-    extract($data);
-    ob_start();
-    require $viewPath;
-    $content = ob_get_clean();
-    ob_start();
-    require dirname(__DIR__) . '/src/Views/layout.php';
-    return ob_get_clean();
+    static $renderer = null;
+    if ($renderer === null) {
+        $renderer = new \App\Http\View\ViewRenderer(dirname(__DIR__) . '/src/Views');
+    }
+    return $renderer->render($view, $data);
 }
 
 // Make renderView available globally for the routes (mirrors public/index.php)
