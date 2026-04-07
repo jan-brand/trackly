@@ -3,74 +3,64 @@
  *
  * Colour roles
  * ────────────
- * Primary  : Green brand colour
- * Accent   : Teal / tech highlights
+ * Primary  : Trackly teal/blue brand colour
+ * Accent   : Action / highlight
  * Neutrals : Surface, border, text hierarchy
- * Status   : Approved · Pending · Clarification · Rejected · Cancelled
+ * Status   : Success · Warning · Danger · Info
  */
 
 :root {
   /* ── Primary ─────────────────────────────────────── */
-  --color-primary-50:  #e7f5ef;   /* primary soft background */
-  --color-primary-100: #d2ede1;
-  --color-primary-200: #b4decc;
-  --color-primary-300: #8fcdb2;
-  --color-primary-400: #5faf8d;
-  --color-primary-500: #1b7f5a;   /* brand primary */
-  --color-primary-600: #146347;   /* hover / dark */
-  --color-primary-700: #0f4e38;
-  --color-primary-800: #0a3b2c;
-  --color-primary-900: #072a1f;
+  --color-primary-50:  #e6f0fb;
+  --color-primary-100: #bcd5f6;
+  --color-primary-200: #8fb8f0;
+  --color-primary-300: #629beb;
+  --color-primary-400: #3d84e7;
+  --color-primary-500: #1a6de3;   /* brand primary */
+  --color-primary-600: #1560cc;
+  --color-primary-700: #0f50b0;
+  --color-primary-800: #0a4094;
+  --color-primary-900: #052e6e;
 
   /* ── Accent ──────────────────────────────────────── */
-  --color-accent-400: #42a9bf;
-  --color-accent-500: #0c8aa6;   /* teal accent */
-  --color-accent-600: #086c82;
+  --color-accent-400: #36c2b4;
+  --color-accent-500: #20a99c;   /* teal accent */
+  --color-accent-600: #178a7e;
 
   /* ── Neutrals ────────────────────────────────────── */
   --color-neutral-0:   #ffffff;
-  --color-neutral-50:  #f8fafc;   /* page background */
-  --color-neutral-100: #f1f5f9;
-  --color-neutral-200: #e2e8f0;   /* border */
-  --color-neutral-300: #cbd5e1;
-  --color-neutral-400: #94a3b8;
-  --color-neutral-500: #64748b;
-  --color-neutral-600: #475569;
-  --color-neutral-700: #334155;
-  --color-neutral-800: #1e293b;
-  --color-neutral-900: #0f172a;
+  --color-neutral-50:  #f8f9fa;
+  --color-neutral-100: #f1f3f5;
+  --color-neutral-200: #e9ecef;
+  --color-neutral-300: #dee2e6;
+  --color-neutral-400: #ced4da;
+  --color-neutral-500: #adb5bd;
+  --color-neutral-600: #868e96;
+  --color-neutral-700: #495057;
+  --color-neutral-800: #343a40;
+  --color-neutral-900: #212529;
 
   /* ── Status ──────────────────────────────────────── */
-  /* Status badges always with icon + text:
-   * Freigegeben · Zur Freigabe · Rueckfrage · Abgelehnt · Storniert
-   */
-  --color-status-approved:      #1b7f5a;
-  --color-status-pending:       #b45309;
-  --color-status-clarification: #0c8aa6;
-  --color-status-rejected:      #b91c1c;
-  --color-status-cancelled:     #64748b;
+  --color-success-50:  #ebf9f0;
+  --color-success-500: #2d9e5f;
+  --color-success-700: #1c6b3e;
 
-  /* Backward-compatible status aliases */
-  --color-success-50:  #e7f5ef;
-  --color-success-500: var(--color-status-approved);
-  --color-success-700: #146347;
+  --color-warning-50:  #fff8e1;
+  --color-warning-500: #f59f00;
+  --color-warning-700: #9e6700;
 
-  --color-warning-50:  #fff7ed;
-  --color-warning-500: var(--color-status-pending);
-  --color-warning-700: #92400e;
+  --color-danger-50:   #fff0f0;
+  --color-danger-500:  #e03131;
+  --color-danger-700:  #941d1d;
 
-  --color-danger-50:   #fef2f2;
-  --color-danger-500:  var(--color-status-rejected);
-  --color-danger-700:  #991b1b;
-
-  --color-info-50:     #ecfeff;
-  --color-info-500:    var(--color-status-clarification);
-  --color-info-700:    #0e7490;
+  --color-info-50:     #e8f4fd;
+  --color-info-500:    #1971c2;
+  --color-info-700:    #0d4d8c;
 
   /* ── Semantic aliases ────────────────────────────── */
   --color-bg:          var(--color-neutral-50);
   --color-surface:     var(--color-neutral-0);
-  --color-border:      var(--color-neutral-200);
+  --color-border:      var(--color-neutral-300);
   --color-text:        var(--color-neutral-900);
   --color-text-muted:  var(--color-neutral-600);
   --color-link:        var(--color-primary-600);

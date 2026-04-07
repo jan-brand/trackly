@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Db\Db;
+use App\Domain\Settings\Settings;
+use App\Domain\Settings\SettingsRegistry;
 use App\Http\BadRequestException;
 use App\Http\ForbiddenException;
 use App\Http\Response;
@@ -30,6 +33,9 @@ function renderView(string $view, array $data = []): string
     global $viewRenderer;
     return $viewRenderer->render($view, $data);
 }
+
+// Build the per-request Settings instance (DB loaded lazily on first access).
+$settings = new Settings(Db::pdo(), new SettingsRegistry());
 
 $router = new Router();
 require dirname(__DIR__) . '/src/Http/routes.php';
