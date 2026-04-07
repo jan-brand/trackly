@@ -61,15 +61,20 @@ final class Settings
         }
 
         // Overwrite with whatever is stored in the DB.
-        $stmt = $this->pdo->query('SELECT `key`, `value_json` FROM settings');
-        if ($stmt !== false) {
-            foreach ($stmt->fetchAll() as $row) {
-                $key = $row['key'];
-                if ($this->registry->has($key)) {
-                    $decoded = json_decode((string) $row['value_json'], true, 512, JSON_THROW_ON_ERROR);
-                    $values[$key] = $decoded;
+        // Guard against the settings table not yet existing (pending migration).
+        try {
+            $stmt = $this->pdo->query('SELECT `key`, `value_json` FROM settings');
+            if ($stmt !== false) {
+                foreach ($stmt->fetchAll() as $row) {
+                    $key = $row['key'];
+                    if ($this->registry->has($key)) {
+                        $decoded = json_decode((string) $row['value_json'], true, 512, JSON_THROW_ON_ERROR);
+                        $values[$key] = $decoded;
+                    }
                 }
             }
+        } catch (\PDOException) {
+            // Table not yet created (migration pending); fall back to registry defaults.
         }
 
         $this->cache = $values;
