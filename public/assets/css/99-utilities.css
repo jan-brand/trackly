@@ -1,0 +1,129 @@
+/*
+ * 99-utilities.css – Utility classes (u- prefix)
+ *
+ * Single-purpose helpers. Intentionally kept minimal.
+ */
+
+/* ── Display ─────────────────────────────────────────── */
+
+.u-block        { display: block; }
+.u-inline-block { display: inline-block; }
+.u-flex         { display: flex; }
+.u-inline-flex  { display: inline-flex; }
+.u-hidden       { display: none; }
+
+/* ── Visibility (accessible hiding) ─────────────────── */
+
+.u-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ── Text alignment ──────────────────────────────────── */
+
+.u-text-left   { text-align: left; }
+.u-text-center { text-align: center; }
+.u-text-right  { text-align: right; }
+
+/* ── Font size ───────────────────────────────────────── */
+
+.u-text-xs   { font-size: var(--font-size-xs); }
+.u-text-sm   { font-size: var(--font-size-sm); }
+.u-text-base { font-size: var(--font-size-base); }
+.u-text-lg   { font-size: var(--font-size-lg); }
+.u-text-xl   { font-size: var(--font-size-xl); }
+
+/* ── Font weight ─────────────────────────────────────── */
+
+.u-font-normal   { font-weight: var(--font-weight-normal); }
+.u-font-medium   { font-weight: var(--font-weight-medium); }
+.u-font-semibold { font-weight: var(--font-weight-semibold); }
+.u-font-bold     { font-weight: var(--font-weight-bold); }
+
+/* ── Colour ──────────────────────────────────────────── */
+
+.u-text-muted   { color: var(--color-text-muted); }
+.u-text-primary { color: var(--color-primary-600); }
+.u-text-success { color: var(--color-success-700); }
+.u-text-danger  { color: var(--color-danger-700); }
+.u-text-warning { color: var(--color-warning-700); }
+
+/* ── Spacing helpers (margin / padding) ──────────────── */
+
+.u-mt-0  { margin-top: 0; }
+.u-mt-2  { margin-top: var(--space-2); }
+.u-mt-4  { margin-top: var(--space-4); }
+.u-mt-6  { margin-top: var(--space-6); }
+.u-mt-8  { margin-top: var(--space-8); }
+
+.u-mb-0  { margin-bottom: 0; }
+.u-mb-2  { margin-bottom: var(--space-2); }
+.u-mb-4  { margin-bottom: var(--space-4); }
+.u-mb-6  { margin-bottom: var(--space-6); }
+.u-mb-8  { margin-bottom: var(--space-8); }
+
+.u-p-0   { padding: 0; }
+.u-p-4   { padding: var(--space-4); }
+.u-p-6   { padding: var(--space-6); }
+
+/* ── Width / max-width ───────────────────────────────── */
+
+.u-w-full  { width: 100%; }
+.u-w-auto  { width: auto; }
+
+/* ── Borders ─────────────────────────────────────────── */
+
+.u-border        { border: 1px solid var(--color-border); }
+.u-border-top    { border-top: 1px solid var(--color-border); }
+.u-border-bottom { border-bottom: 1px solid var(--color-border); }
+.u-rounded       { border-radius: var(--radius-base); }
+.u-rounded-lg    { border-radius: var(--radius-lg); }
+.u-rounded-full  { border-radius: var(--radius-full); }
+
+/* ── Shadows ─────────────────────────────────────────── */
+
+.u-shadow-sm { box-shadow: var(--shadow-sm); }
+.u-shadow-md { box-shadow: var(--shadow-md); }
+
+/* ── Overflow ────────────────────────────────────────── */
+
+.u-overflow-hidden { overflow: hidden; }
+.u-overflow-auto   { overflow: auto; }
+.u-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Gap helpers ─────────────────────────────────────── */
+
+.u-gap-2 { gap: var(--space-2); }
+.u-gap-4 { gap: var(--space-4); }
+.u-gap-6 { gap: var(--space-6); }
+
+/* ── Error page: large status code ───────────────────── */
+
+.u-error-code {
+  font-size: 4rem;
+  color: var(--color-neutral-300);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
+
+/* ── Extra font-size token ───────────────────────────── */
+
+.u-text-2xl { font-size: var(--font-size-2xl); }
+
+@media (prefers-reduced-motion: reduce) {
+  .u-animate-spin,
+  .u-animate-pulse {
+    animation: none !important;
+  }
+}

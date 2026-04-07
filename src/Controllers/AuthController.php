@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Db\Db;
 use App\Http\Response;
+use App\Security\Auth;
 use App\Security\Csrf;
 use App\Support\Flash;
 
@@ -46,13 +47,14 @@ class AuthController
         $_SESSION['user_id'] = $user['id'];
 
         Flash::addSuccess('Angemeldet.');
-        return new Response(303, ['Location' => '/'], '');
+        return new Response(303, ['Location' => Auth::defaultHome()], '');
     }
 
     public function doLogout(): Response
     {
         Csrf::verifyOrFail();
 
+        Auth::clearRoleCache();
         $_SESSION = [];
 
         if (ini_get('session.use_cookies')) {

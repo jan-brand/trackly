@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Controllers\AdminController;
 use App\Controllers\AuthController;
 use App\Controllers\HomeController;
+use App\Http\BadRequestException;
 use App\Http\Response;
 use App\Http\Router;
 
@@ -29,6 +31,14 @@ $router->post('/logout', function (): Response {
     return (new AuthController())->doLogout();
 });
 
+$router->get('/admin/settings', function (): Response {
+    return (new AdminController())->settings();
+});
+
 $router->get('/boom', function (): Response {
     throw new \RuntimeException('Boom! Test exception.');
+});
+
+$router->get('/demo/bad-request', function (): Response {
+    throw new BadRequestException('Unknown query parameter.');
 });

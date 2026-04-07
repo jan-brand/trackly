@@ -1,0 +1,162 @@
+/*
+ * 06-components.feedback.css – Feedback: flash messages, badges, alerts
+ *
+ * A11y rule: status is NEVER conveyed by colour alone.
+ * Every status indicator includes a visible label/icon.
+ */
+
+/* ── c-flash ── top-of-page notifications ────────────── */
+
+.c-flash {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-base);
+  border: 1px solid transparent;
+  font-size: var(--font-size-sm);
+}
+
+.c-flash__icon {
+  flex-shrink: 0;
+  font-style: normal;
+  font-size: var(--font-size-lg);
+  line-height: 1;
+}
+
+.c-flash__body {
+  flex: 1;
+}
+
+.c-flash__title {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+}
+
+/* Success */
+.c-flash--success {
+  background-color: var(--color-success-50);
+  border-color:     var(--color-success-500);
+  color:            var(--color-success-700);
+}
+
+/* Error / Danger */
+.c-flash--error {
+  background-color: var(--color-danger-50);
+  border-color:     var(--color-danger-500);
+  color:            var(--color-danger-700);
+}
+
+/* Warning */
+.c-flash--warning {
+  background-color: var(--color-warning-50);
+  border-color:     var(--color-warning-500);
+  color:            var(--color-warning-700);
+}
+
+/* Info */
+.c-flash--info {
+  background-color: var(--color-info-50);
+  border-color:     var(--color-info-500);
+  color:            var(--color-info-700);
+}
+
+/* ── c-badge ── inline status indicator ─────────────── */
+
+.c-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.2em 0.55em;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+}
+
+/* Badge: the dot always has a visible label via aria-label on the badge */
+.c-badge::before {
+  content: '';
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+.c-badge--success {
+  background-color: var(--color-success-50);
+  color:            var(--color-success-700);
+  border-color:     var(--color-success-500);
+}
+
+.c-badge--danger {
+  background-color: var(--color-danger-50);
+  color:            var(--color-danger-700);
+  border-color:     var(--color-danger-500);
+}
+
+.c-badge--warning {
+  background-color: var(--color-warning-50);
+  color:            var(--color-warning-700);
+  border-color:     var(--color-warning-500);
+}
+
+.c-badge--info {
+  background-color: var(--color-info-50);
+  color:            var(--color-info-700);
+  border-color:     var(--color-info-500);
+}
+
+.c-badge--neutral {
+  background-color: var(--color-neutral-100);
+  color:            var(--color-neutral-700);
+  border-color:     var(--color-neutral-300);
+}
+
+/* ── c-alert ── block-level contextual message ───────── */
+
+.c-alert {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-base);
+  border-left: 4px solid transparent;
+  font-size: var(--font-size-sm);
+}
+
+.c-alert__title {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+}
+
+.c-alert--success {
+  background-color: var(--color-success-50);
+  border-color:     var(--color-success-500);
+  color:            var(--color-success-700);
+}
+
+.c-alert--error {
+  background-color: var(--color-danger-50);
+  border-color:     var(--color-danger-500);
+  color:            var(--color-danger-700);
+}
+
+.c-alert--warning {
+  background-color: var(--color-warning-50);
+  border-color:     var(--color-warning-500);
+  color:            var(--color-warning-700);
+}
+
+.c-alert--info {
+  background-color: var(--color-info-50);
+  border-color:     var(--color-info-500);
+  color:            var(--color-info-700);
+}
+
+/* ── is- state hooks ─────────────────────────────────── */
+
+.is-loading { opacity: 0.6; pointer-events: none; cursor: wait; }
+.is-hidden  { display: none !important; }
+.is-visible { display: block !important; }

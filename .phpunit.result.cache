@@ -1,0 +1,1 @@
+{"version":1,"defects":[],"times":{"App\\Tests\\Feature\\BadRequestTest::testBadRequestRouteReturns400":0.001,"App\\Tests\\Feature\\HealthTest::testHealthEndpointReturns200AndBodyOk":0,"App\\Tests\\Feature\\NotFoundTest::testUnknownRouteReturns404WithNichtGefunden":0}}
