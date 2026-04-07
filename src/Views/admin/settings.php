@@ -39,6 +39,9 @@ $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 
                     id="reason"
                     name="reason"
                     rows="3"
+                    required
+                    minlength="3"
+                    placeholder="Mindestens 3 Zeichen"
                 ></textarea>
                 <?php if (!empty($errors['reason'])): ?>
                     <ul class="c-field-errors">
