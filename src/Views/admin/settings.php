@@ -87,8 +87,8 @@ $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 
                             id="<?= $esc($fieldId) ?>"
                             name="<?= $esc($fieldName) ?>"
                             value="<?= $esc($currentVal) ?>"
-                            <?= $def->min !== null ? 'min="' . $esc($def->min) . '"' : '' ?>
-                            <?= $def->max !== null ? 'max="' . $esc($def->max) . '"' : '' ?>
+                            <?= $def->min !== null ? ' min="' . $esc($def->min) . '"' : '' ?>
+                            <?= $def->max !== null ? ' max="' . $esc($def->max) . '"' : '' ?>
                         >
 
                     <?php else: ?>

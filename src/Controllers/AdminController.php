@@ -14,17 +14,16 @@ class AdminController
 {
     public function settings(): Response
     {
-        Guard::requireLogin();
         Guard::requireRole(['admin']);
 
         global $settings;
+        $registry = new SettingsRegistry();
         /** @var Settings $settingsObj */
         $settingsObj = $settings instanceof Settings
             ? $settings
-            : new Settings(Db::pdo(), new SettingsRegistry());
+            : new Settings(Db::pdo(), $registry);
 
         $values = $settingsObj->all();
-        $registry = new SettingsRegistry();
 
         $body = renderView('admin/settings', [
             'values'   => $values,
