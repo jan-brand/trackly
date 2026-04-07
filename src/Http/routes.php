@@ -35,6 +35,10 @@ $router->get('/admin/settings', function (): Response {
     return (new AdminController())->settings();
 });
 
+$router->post('/admin/settings', function (): Response {
+    return (new AdminController())->saveSettings();
+});
+
 $router->get('/boom', function (): Response {
     throw new \RuntimeException('Boom! Test exception.');
 });
