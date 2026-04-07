@@ -29,11 +29,13 @@ class AdminController
             : new Settings(Db::pdo(), $registry);
 
         $values = $settingsObj->all();
+        $meta   = $settingsObj->meta();
 
         $body = renderView('admin/settings', [
             'values'   => $values,
             'errors'   => [],
             'registry' => $registry,
+            'meta'     => $meta,
         ]);
 
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
@@ -75,6 +77,7 @@ class AdminController
                 'values'   => $settingsObj->all(),
                 'errors'   => $errors,
                 'registry' => $registry,
+                'meta'     => $settingsObj->meta(),
             ]);
 
             return new Response(422, ['Content-Type' => 'text/html; charset=utf-8'], $body);

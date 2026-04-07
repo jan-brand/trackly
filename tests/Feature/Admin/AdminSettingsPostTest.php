@@ -261,9 +261,14 @@ class AdminSettingsPostTest extends TestCase
         $registry = new SettingsRegistry();
         $settings = [];
         foreach ($registry->all() as $def) {
-            $settings[$def->key] = $def->type === 'bool'
-                ? ($def->default ? '1' : '0')
-                : (string) $def->default;
+            if ($def->type === 'bool') {
+                $settings[$def->key] = $def->default ? '1' : '0';
+            } elseif ($def->uiType === 'duration') {
+                $mins = (int) $def->default;
+                $settings[$def->key] = sprintf('%02d:%02d', intdiv($mins, 60), $mins % 60);
+            } else {
+                $settings[$def->key] = (string) $def->default;
+            }
         }
 
         return [
@@ -293,6 +298,8 @@ class AdminSettingsPostTest extends TestCase
             CREATE TABLE settings (
                 key                  TEXT    NOT NULL,
                 value_json           TEXT    NOT NULL,
+                label                TEXT    NOT NULL DEFAULT '',
+                ui_type              TEXT    NOT NULL DEFAULT '',
                 updated_by_user_id   INTEGER NOT NULL,
                 updated_at           TEXT    NOT NULL,
                 PRIMARY KEY (key)

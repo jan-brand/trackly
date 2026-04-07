@@ -96,11 +96,20 @@ final class SettingsValidator
                 return [in_array($raw, [true, 1, '1', 'true'], true), $errors];
 
             case 'int':
-                if (!is_numeric($raw)) {
-                    $errors[] = "Field \"{$def->key}\" must be an integer.";
-                    return [null, $errors];
+                if ($def->uiType === 'duration') {
+                    // Expect HH:MM format (e.g. "08:00" → 480 minutes).
+                    if (!preg_match('/^([0-9]+):([0-5][0-9])$/', (string) $raw, $m)) {
+                        $errors[] = "Field \"{$def->key}\" must be in HH:MM format (e.g. \"08:00\").";
+                        return [null, $errors];
+                    }
+                    $value = (int) $m[1] * 60 + (int) $m[2];
+                } else {
+                    if (!is_numeric($raw)) {
+                        $errors[] = "Field \"{$def->key}\" must be an integer.";
+                        return [null, $errors];
+                    }
+                    $value = (int) $raw;
                 }
-                $value = (int) $raw;
                 if ($def->min !== null && $value < $def->min) {
                     $errors[] = "Field \"{$def->key}\" must be at least {$def->min}.";
                 }

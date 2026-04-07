@@ -90,9 +90,9 @@ class AdminSettingsAtomicityTest extends TestCase
         $csrfToken = $this->setCsrfToken();
 
         // Change one known-default value so we can verify the delta.
-        // Registry default is 480; we submit 500.
+        // Registry default is 480 min (08:00); we submit 500 min (08:20).
         $payload = $this->buildValidPayload($csrfToken, 'Audit snapshot test');
-        $payload['settings']['adult.max_daily_regular_minutes'] = '500';
+        $payload['settings']['adult.max_daily_regular_minutes'] = '08:20';
 
         // The exception limit must remain >= the regular limit to pass
         // cross-field validation; default is 600 which is already ≥ 500.
@@ -120,7 +120,7 @@ class AdminSettingsAtomicityTest extends TestCase
         $old = json_decode((string) $row['old_value_json'], true);
         $new = json_decode((string) $row['new_value_json'], true);
 
-        // old_value_json must reflect the registry default (480) because the
+        // old_value_json must reflect the registry default (480 min) because the
         // DB was empty before this save.
         $this->assertSame(
             480,
@@ -128,7 +128,7 @@ class AdminSettingsAtomicityTest extends TestCase
             'old_value_json must contain the pre-save default value',
         );
 
-        // new_value_json must reflect what was written (500).
+        // new_value_json must reflect what was written (500 min).
         $this->assertSame(
             500,
             $new['adult.max_daily_regular_minutes'],
@@ -189,9 +189,14 @@ class AdminSettingsAtomicityTest extends TestCase
         $registry = new SettingsRegistry();
         $settings = [];
         foreach ($registry->all() as $def) {
-            $settings[$def->key] = $def->type === 'bool'
-                ? ($def->default ? '1' : '0')
-                : (string) $def->default;
+            if ($def->type === 'bool') {
+                $settings[$def->key] = $def->default ? '1' : '0';
+            } elseif ($def->uiType === 'duration') {
+                $mins = (int) $def->default;
+                $settings[$def->key] = sprintf('%02d:%02d', intdiv($mins, 60), $mins % 60);
+            } else {
+                $settings[$def->key] = (string) $def->default;
+            }
         }
 
         return [
@@ -218,6 +223,8 @@ class AdminSettingsAtomicityTest extends TestCase
             CREATE TABLE settings (
                 key                  TEXT    NOT NULL,
                 value_json           TEXT    NOT NULL,
+                label                TEXT    NOT NULL DEFAULT '',
+                ui_type              TEXT    NOT NULL DEFAULT '',
                 updated_by_user_id   INTEGER NOT NULL,
                 updated_at           TEXT    NOT NULL,
                 PRIMARY KEY (key)

@@ -44,21 +44,36 @@ return function (PDO $pdo): void {
     $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
     if ($driver === 'sqlite') {
-        $sql = 'INSERT OR IGNORE INTO settings (`key`, `value_json`, `updated_by_user_id`, `updated_at`)
-                VALUES (:key, :value_json, :user_id, :now)';
+        $sql = 'INSERT OR IGNORE INTO settings (`key`, `value_json`, `label`, `ui_type`, `updated_by_user_id`, `updated_at`)
+                VALUES (:key, :value_json, :label, :ui_type, :user_id, :now)';
     } else {
-        $sql = 'INSERT IGNORE INTO settings (`key`, `value_json`, `updated_by_user_id`, `updated_at`)
-                VALUES (:key, :value_json, :user_id, :now)';
+        $sql = 'INSERT IGNORE INTO settings (`key`, `value_json`, `label`, `ui_type`, `updated_by_user_id`, `updated_at`)
+                VALUES (:key, :value_json, :label, :ui_type, :user_id, :now)';
     }
 
     $insert = $pdo->prepare($sql);
+
+    // Back-fill label/ui_type for rows that were inserted before this migration
+    // (e.g. existing deployments).  Only updates rows where label is still empty.
+    $update = $pdo->prepare(
+        "UPDATE settings SET `label` = :label, `ui_type` = :ui_type
+          WHERE `key` = :key AND `label` = ''"
+    );
 
     foreach ($registry->all() as $def) {
         $insert->execute([
             ':key'        => $def->key,
             ':value_json' => json_encode($def->default, JSON_THROW_ON_ERROR),
+            ':label'      => $def->label ?? '',
+            ':ui_type'    => $def->uiType ?? '',
             ':user_id'    => $adminUserId,
             ':now'        => $now,
+        ]);
+
+        $update->execute([
+            ':key'     => $def->key,
+            ':label'   => $def->label ?? '',
+            ':ui_type' => $def->uiType ?? '',
         ]);
     }
 };

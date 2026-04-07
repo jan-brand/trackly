@@ -114,8 +114,8 @@ class SettingsValidatorTest extends TestCase
     public function testDailyExceptionLessThanRegularProducesGlobalError(): void
     {
         $result = $this->validator->validateSettingsPayload([
-            'adult.max_daily_regular_minutes'   => 600,
-            'adult.max_daily_exception_minutes' => 480, // violation: 480 < 600
+            'adult.max_daily_regular_minutes'   => '10:00', // 600 min
+            'adult.max_daily_exception_minutes' => '08:00', // 480 min → violation: exception < regular
         ]);
 
         $this->assertFalse($result->isValid());
@@ -126,8 +126,8 @@ class SettingsValidatorTest extends TestCase
     public function testWeeklyExceptionLessThanRegularProducesGlobalError(): void
     {
         $result = $this->validator->validateSettingsPayload([
-            'adult.max_weekly_regular_minutes'   => 2700,
-            'adult.max_weekly_exception_minutes' => 2400, // violation
+            'adult.max_weekly_regular_minutes'   => '45:00', // 2700 min
+            'adult.max_weekly_exception_minutes' => '40:00', // 2400 min → violation
         ]);
 
         $this->assertFalse($result->isValid());
@@ -197,10 +197,10 @@ class SettingsValidatorTest extends TestCase
     public function testValidPayloadNormalisesValues(): void
     {
         $result = $this->validator->validateSettingsPayload([
-            'adult.max_daily_regular_minutes'      => '450',
-            'adult.max_daily_exception_minutes'    => '540',
-            'adult.max_weekly_regular_minutes'     => '2250',
-            'adult.max_weekly_exception_minutes'   => '2700',
+            'adult.max_daily_regular_minutes'      => '07:30',  // 450 min
+            'adult.max_daily_exception_minutes'    => '09:00',  // 540 min
+            'adult.max_weekly_regular_minutes'     => '37:30',  // 2250 min
+            'adult.max_weekly_exception_minutes'   => '45:00',  // 2700 min
             'adult.break_required_over_6h_minutes' => '30',
             'adult.break_required_over_9h_minutes' => '45',
             'youth.allowed_start_time'             => '07:00',
@@ -217,12 +217,12 @@ class SettingsValidatorTest extends TestCase
     public function testPartialPayloadMergesWithDefaults(): void
     {
         $result = $this->validator->validateSettingsPayload([
-            'adult.max_daily_regular_minutes' => 400,
+            'adult.max_daily_regular_minutes' => '06:40', // 400 min
         ]);
 
         $this->assertTrue($result->isValid());
         $this->assertSame(400, $result->values['adult.max_daily_regular_minutes']);
-        // Other values come from defaults; exception >= regular (600 >= 400) is still satisfied.
+        // Other values come from defaults; exception >= regular (600 min >= 400 min) is still satisfied.
         $this->assertSame(600, $result->values['adult.max_daily_exception_minutes']);
     }
 }

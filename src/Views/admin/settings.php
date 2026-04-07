@@ -4,9 +4,10 @@ declare(strict_types=1);
 use App\Domain\Settings\SettingDefinition;
 use App\Domain\Settings\SettingsRegistry;
 
-/** @var array<string, mixed>               $values   Current setting values (from DB / defaults) */
-/** @var array<string, list<string>>        $errors   Validation errors (per-field + '_global') */
-/** @var SettingsRegistry                   $registry Registry with all definitions */
+/** @var array<string, mixed>                                        $values   Current setting values (from DB / defaults) */
+/** @var array<string, list<string>>                                 $errors   Validation errors (per-field + '_global') */
+/** @var SettingsRegistry                                            $registry Registry with all definitions */
+/** @var array<string, array{label: string, ui_type: string}>        $meta     DB-sourced label and ui_type per key */
 
 $title = 'Einstellungen – Trackly';
 
@@ -14,6 +15,14 @@ $title = 'Einstellungen – Trackly';
  * Render a single HTML-escaped value for an input.
  */
 $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+
+/**
+ * Convert an integer number of minutes to a HH:MM string for display.
+ */
+$minsToHHMM = static function (mixed $mins): string {
+    $total = max(0, (int) $mins);
+    return sprintf('%02d:%02d', intdiv($total, 60), $total % 60);
+};
 ?>
 <div class="l-section">
     <div class="l-wrapper">
@@ -54,16 +63,18 @@ $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 
 
             <?php foreach ($registry->all() as $def): ?>
                 <?php
-                $fieldName  = 'settings[' . $def->key . ']';
-                $fieldId    = 'field_' . str_replace('.', '_', $def->key);
-                $currentVal = $values[$def->key] ?? $def->default;
-                $hasError   = !empty($errors[$def->key]);
-                $inputClass = 'c-input' . ($hasError ? ' is-invalid' : '');
+                $fieldName      = 'settings[' . $def->key . ']';
+                $fieldId        = 'field_' . str_replace('.', '_', $def->key);
+                $currentVal     = $values[$def->key] ?? $def->default;
+                $hasError       = !empty($errors[$def->key]);
+                $inputClass     = 'c-input' . ($hasError ? ' is-invalid' : '');
+                $effectiveLabel = $meta[$def->key]['label'] ?? $def->label ?? $def->key;
+                $effectiveUiType = $meta[$def->key]['ui_type'] ?? $def->uiType ?? '';
                 ?>
                 <div class="c-form-group u-mb-3">
                     <label class="c-label" for="<?= $esc($fieldId) ?>">
-                        <?= $esc($def->label ?? $def->key) ?>
-                        <?php if ($def->type === 'int' && $def->min !== null && $def->max !== null): ?>
+                        <?= $esc($effectiveLabel) ?>
+                        <?php if ($def->type === 'int' && $effectiveUiType !== 'duration' && $def->min !== null && $def->max !== null): ?>
                             <span class="c-label__hint">(<?= $esc($def->min) ?>–<?= $esc($def->max) ?>)</span>
                         <?php endif; ?>
                     </label>
@@ -83,6 +94,27 @@ $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 
                             <?php endforeach; ?>
                         </select>
 
+                    <?php elseif ($effectiveUiType === 'duration'): ?>
+                        <input
+                            class="<?= $inputClass ?>"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]+:[0-5][0-9]"
+                            id="<?= $esc($fieldId) ?>"
+                            name="<?= $esc($fieldName) ?>"
+                            value="<?= $esc($minsToHHMM($currentVal)) ?>"
+                            placeholder="z.B. 08:00"
+                        >
+
+                    <?php elseif ($effectiveUiType === 'time'): ?>
+                        <input
+                            class="<?= $inputClass ?>"
+                            type="time"
+                            id="<?= $esc($fieldId) ?>"
+                            name="<?= $esc($fieldName) ?>"
+                            value="<?= $esc($currentVal) ?>"
+                        >
+
                     <?php elseif ($def->type === 'int'): ?>
                         <input
                             class="<?= $inputClass ?>"
@@ -92,15 +124,6 @@ $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 
                             value="<?= $esc($currentVal) ?>"
                             <?= $def->min !== null ? ' min="' . $esc($def->min) . '"' : '' ?>
                             <?= $def->max !== null ? ' max="' . $esc($def->max) . '"' : '' ?>
-                        >
-
-                    <?php elseif ($def->uiType === 'time'): ?>
-                        <input
-                            class="<?= $inputClass ?>"
-                            type="time"
-                            id="<?= $esc($fieldId) ?>"
-                            name="<?= $esc($fieldName) ?>"
-                            value="<?= $esc($currentVal) ?>"
                         >
 
                     <?php else: ?>

@@ -46,21 +46,42 @@ final class SettingsWriter
             $oldSnapshot = $this->loadSnapshot();
 
             // ----------------------------------------------------------------
-            // 2. Upsert all submitted, whitelisted keys
-            //    REPLACE INTO is understood by both MariaDB and SQLite.
+            // 2. Upsert all submitted, whitelisted keys.
+            //    On insert  → label and ui_type are populated from the registry.
+            //    On update  → only the value and audit columns change; label/ui_type are kept.
             // ----------------------------------------------------------------
-            $upsert = $this->pdo->prepare(
-                'REPLACE INTO settings (`key`, `value_json`, `updated_by_user_id`, `updated_at`)
-                 VALUES (:key, :value_json, :user_id, :now)'
-            );
+            $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+
+            if ($driver === 'sqlite') {
+                $upsertSql =
+                    'INSERT INTO settings (`key`, `value_json`, `label`, `ui_type`, `updated_by_user_id`, `updated_at`)
+                     VALUES (:key, :value_json, :label, :ui_type, :user_id, :now)
+                     ON CONFLICT(`key`) DO UPDATE SET
+                         `value_json`         = excluded.`value_json`,
+                         `updated_by_user_id` = excluded.`updated_by_user_id`,
+                         `updated_at`         = excluded.`updated_at`';
+            } else {
+                $upsertSql =
+                    'INSERT INTO settings (`key`, `value_json`, `label`, `ui_type`, `updated_by_user_id`, `updated_at`)
+                     VALUES (:key, :value_json, :label, :ui_type, :user_id, :now)
+                     ON DUPLICATE KEY UPDATE
+                         `value_json`         = VALUES(`value_json`),
+                         `updated_by_user_id` = VALUES(`updated_by_user_id`),
+                         `updated_at`         = VALUES(`updated_at`)';
+            }
+
+            $upsert = $this->pdo->prepare($upsertSql);
 
             foreach ($values as $key => $value) {
                 if (!$this->registry->has($key)) {
                     continue;
                 }
+                $def = $this->registry->get($key);
                 $upsert->execute([
                     ':key'        => $key,
                     ':value_json' => json_encode($value, JSON_THROW_ON_ERROR),
+                    ':label'      => $def->label ?? '',
+                    ':ui_type'    => $def->uiType ?? '',
                     ':user_id'    => $userId,
                     ':now'        => $now,
                 ]);

@@ -21,6 +21,9 @@ final class Settings
     /** @var array<string, mixed>|null  null = not yet loaded */
     private ?array $cache = null;
 
+    /** @var array<string, array{label: string, ui_type: string}>|null */
+    private ?array $metaCache = null;
+
     public function __construct(
         private readonly PDO             $pdo,
         private readonly SettingsRegistry $registry,
@@ -40,6 +43,52 @@ final class Settings
         $all = $this->all();
 
         return $all[$key];
+    }
+
+    /**
+     * Return per-key metadata (label, ui_type) from the DB.
+     * Falls back to registry definitions for missing or empty columns.
+     *
+     * @return array<string, array{label: string, ui_type: string}>
+     */
+    public function meta(): array
+    {
+        if ($this->metaCache !== null) {
+            return $this->metaCache;
+        }
+
+        // Start from registry defaults.
+        $result = [];
+        foreach ($this->registry->all() as $def) {
+            $result[$def->key] = [
+                'label'   => $def->label ?? $def->key,
+                'ui_type' => $def->uiType ?? '',
+            ];
+        }
+
+        // Override with whatever is stored in the DB.
+        try {
+            $stmt = $this->pdo->query('SELECT `key`, `label`, `ui_type` FROM settings');
+            if ($stmt !== false) {
+                foreach ($stmt->fetchAll() as $row) {
+                    $key = $row['key'];
+                    if ($this->registry->has($key)) {
+                        if (!empty($row['label'])) {
+                            $result[$key]['label'] = $row['label'];
+                        }
+                        if (isset($row['ui_type']) && $row['ui_type'] !== '') {
+                            $result[$key]['ui_type'] = $row['ui_type'];
+                        }
+                    }
+                }
+            }
+        } catch (\PDOException) {
+            // Table not yet created or columns missing; fall back to registry defaults.
+        }
+
+        $this->metaCache = $result;
+
+        return $this->metaCache;
     }
 
     /**

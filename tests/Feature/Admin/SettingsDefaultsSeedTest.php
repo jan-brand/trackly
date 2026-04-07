@@ -110,6 +110,8 @@ class SettingsDefaultsSeedTest extends TestCase
             CREATE TABLE settings (
                 key                  TEXT    NOT NULL,
                 value_json           TEXT    NOT NULL,
+                label                TEXT    NOT NULL DEFAULT '',
+                ui_type              TEXT    NOT NULL DEFAULT '',
                 updated_by_user_id   INTEGER NOT NULL,
                 updated_at           TEXT    NOT NULL,
                 PRIMARY KEY (key)
