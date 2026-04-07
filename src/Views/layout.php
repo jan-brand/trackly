@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 use App\Support\Flash;
 
-$flash = Flash::consume();
-$title = $title ?? 'Trackly';
+$flash   = Flash::consume();
+$title   = $title ?? 'Trackly';
+$hideNav = $hideNav ?? false;
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -15,6 +16,9 @@ $title = $title ?? 'Trackly';
     <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></title>
 </head>
 <body>
+<?php if (!$hideNav): ?>
+<!-- nav -->
+<?php endif; ?>
 <?php if (!empty($flash['success'])): ?>
 <section class="flash flash-success">
     <h2>OK</h2>

@@ -59,6 +59,9 @@ function simulateRequest(
 
     try {
         $response = $router->dispatch($reqMethod, $reqPath);
+    } catch (\App\Http\BadRequestException) {
+        $body = renderViewTest('errors/400');
+        $response = new \App\Http\Response(400, ['Content-Type' => 'text/html; charset=utf-8'], $body);
     } catch (\App\Security\CsrfViolationException) {
         $body = renderViewTest('errors/403');
         $response = new \App\Http\Response(403, ['Content-Type' => 'text/html; charset=utf-8'], $body);
