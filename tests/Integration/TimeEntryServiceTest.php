@@ -220,6 +220,17 @@ class TimeEntryServiceTest extends TestCase
         ");
 
         $pdo->exec("
+            CREATE TABLE time_entry_flags (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                time_entry_id  INTEGER NOT NULL,
+                flag_key       TEXT    NOT NULL,
+                flag_value     TEXT    NULL,
+                created_at     TEXT    NOT NULL,
+                UNIQUE (time_entry_id, flag_key)
+            )
+        ");
+
+        $pdo->exec("
             CREATE TABLE time_entry_audit_log (
                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
                 time_entry_id  INTEGER NOT NULL,

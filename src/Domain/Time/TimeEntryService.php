@@ -12,13 +12,23 @@ use PDO;
  * Every public method:
  *   – runs inside exactly one DB transaction
  *   – appends exactly one row to time_entry_audit_log
+ *   – re-evaluates rules and updates time_entry_flags + status (when RuleEngine is provided)
  *
  * Controllers must not write to time_entries directly; all writes go through
  * this service.
  */
 final class TimeEntryService
 {
-    public function __construct(private readonly PDO $pdo) {}
+    /**
+     * @param PDO              $pdo         Database connection
+     * @param RuleEngine|null  $ruleEngine  When null, flag evaluation is skipped
+     * @param array<string,mixed> $settings Application settings used to build RuleContext
+     */
+    public function __construct(
+        private readonly PDO         $pdo,
+        private readonly ?RuleEngine $ruleEngine = null,
+        private readonly array       $settings   = [],
+    ) {}
 
     /**
      * Create a manually-entered time entry for a target user.
@@ -54,12 +64,20 @@ final class TimeEntryService
                 ':break_minutes' => $input['break_minutes'] ?? 0,
                 ':net_minutes'   => $input['net_minutes'],
                 ':entry_source'  => 'manual',
-                ':status'        => $input['status'] ?? 'pending',
+                ':status'        => 'pending',
                 ':created_at'    => $now,
                 ':updated_at'    => $now,
             ]);
 
             $timeEntryId = (int) $this->pdo->lastInsertId();
+
+            // Evaluate rules + persist flags + set status
+            $flags = $this->evaluateAndPersistFlags($timeEntryId, $targetUserId, null);
+            $status = empty($flags) ? 'approved' : 'pending_approval';
+
+            $this->pdo->prepare(
+                'UPDATE time_entries SET status = :status, updated_at = :updated_at WHERE id = :id'
+            )->execute([':status' => $status, ':updated_at' => $now, ':id' => $timeEntryId]);
 
             $newRow = $this->fetchRow($timeEntryId);
 
@@ -101,7 +119,7 @@ final class TimeEntryService
             $now    = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
             $oldRow = $this->fetchRow($timeEntryId);
 
-            $updatable = ['date_local', 'start_at', 'end_at', 'break_minutes', 'net_minutes', 'status'];
+            $updatable  = ['date_local', 'start_at', 'end_at', 'break_minutes', 'net_minutes', 'status'];
             $setClauses = [];
             $params     = [':id' => $timeEntryId, ':updated_at' => $now];
 
@@ -121,6 +139,22 @@ final class TimeEntryService
                 $sql = 'UPDATE time_entries SET ' . implode(', ', $setClauses) . ' WHERE id = :id';
                 $this->pdo->prepare($sql)->execute($params);
             }
+
+            // Evaluate rules + persist flags + set status
+            $userId = (int) $oldRow['user_id'];
+            $flags  = $this->evaluateAndPersistFlags($timeEntryId, $userId, $timeEntryId);
+
+            // Update of a previously approved entry → always pending_approval
+            $prevStatus = (string) $oldRow['status'];
+            if ($prevStatus === 'approved') {
+                $newStatus = 'pending_approval';
+            } else {
+                $newStatus = empty($flags) ? 'approved' : 'pending_approval';
+            }
+
+            $this->pdo->prepare(
+                'UPDATE time_entries SET status = :status, updated_at = :updated_at WHERE id = :id'
+            )->execute([':status' => $newStatus, ':updated_at' => $now, ':id' => $timeEntryId]);
 
             $newRow = $this->fetchRow($timeEntryId);
 
@@ -199,6 +233,94 @@ final class TimeEntryService
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Run the rule engine (if configured), persist flags, and return the flag list.
+     *
+     * @param  int      $timeEntryId     The entry being evaluated
+     * @param  int      $userId          The entry's owner
+     * @param  int|null $excludeEntryId  Entry ID to exclude from overlap check (for updates)
+     * @return list<Flag>
+     * @throws \JsonException
+     */
+    private function evaluateAndPersistFlags(
+        int $timeEntryId,
+        int $userId,
+        ?int $excludeEntryId,
+    ): array {
+        // Delete previous flags for this entry (delete + re-insert strategy)
+        $this->pdo->prepare(
+            'DELETE FROM time_entry_flags WHERE time_entry_id = :id'
+        )->execute([':id' => $timeEntryId]);
+
+        if ($this->ruleEngine === null) {
+            return [];
+        }
+
+        $entryRow = $this->fetchRow($timeEntryId);
+        $entry    = TimeEntry::fromRow($entryRow);
+
+        // Build context: load other non-cancelled entries for this user
+        $otherEntries = $this->loadOtherEntries($userId, $excludeEntryId);
+
+        $ctx = new RuleContext(
+            maxShiftMinutes:        (int) ($this->settings['work.max_shift_minutes']             ?? 600),
+            breakRequired6hMinutes: (int) ($this->settings['adult.break_required_over_6h_minutes'] ?? 30),
+            breakRequired9hMinutes: (int) ($this->settings['adult.break_required_over_9h_minutes'] ?? 45),
+            otherEntries:           $otherEntries,
+        );
+
+        $flags = $this->ruleEngine->evaluate($entry, $ctx);
+
+        // Persist flags
+        if (!empty($flags)) {
+            $insertFlag = $this->pdo->prepare(
+                'INSERT INTO time_entry_flags (time_entry_id, flag_key, flag_value, created_at)
+                 VALUES (:time_entry_id, :flag_key, :flag_value, :created_at)'
+            );
+            $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+            foreach ($flags as $flag) {
+                $insertFlag->execute([
+                    ':time_entry_id' => $timeEntryId,
+                    ':flag_key'      => $flag->flagKey,
+                    ':flag_value'    => $flag->flagValue,
+                    ':created_at'    => $now,
+                ]);
+            }
+        }
+
+        return $flags;
+    }
+
+    /**
+     * Load non-cancelled entries for a user, optionally excluding one entry.
+     *
+     * @return list<array{id: int, start_at: string, end_at: string}>
+     */
+    private function loadOtherEntries(int $userId, ?int $excludeId): array
+    {
+        if ($excludeId !== null) {
+            $stmt = $this->pdo->prepare(
+                "SELECT id, start_at, end_at FROM time_entries
+                  WHERE user_id = :user_id AND status != 'cancelled' AND id != :exclude_id"
+            );
+            $stmt->execute([':user_id' => $userId, ':exclude_id' => $excludeId]);
+        } else {
+            $stmt = $this->pdo->prepare(
+                "SELECT id, start_at, end_at FROM time_entries
+                  WHERE user_id = :user_id AND status != 'cancelled'"
+            );
+            $stmt->execute([':user_id' => $userId]);
+        }
+
+        return array_map(static function (array $row): array {
+            return [
+                'id'       => (int) $row['id'],
+                'start_at' => (string) $row['start_at'],
+                'end_at'   => (string) $row['end_at'],
+            ];
+        }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
 
     /**
      * @return array<string, mixed>

@@ -126,6 +126,32 @@ final class SettingsRegistry
                 enumOptions:  ['light', 'standard', 'heavy'],
                 enumLabels:   ['Leicht', 'Standard', 'Schwer'],
             ),
+            // ----------------------------------------------------------------
+            // Application / timezone
+            // ----------------------------------------------------------------
+            new SettingDefinition(
+                key:     'app.timezone',
+                type:    'string',
+                default: 'Europe/Berlin',
+                label:   'Zeitzone',
+            ),
+            // ----------------------------------------------------------------
+            // Work rules for manual time entry
+            // ----------------------------------------------------------------
+            new SettingDefinition(
+                key:     'work.allow_overnight_shifts',
+                type:    'bool',
+                default: false,
+                label:   'Nachtschichten erlauben',
+            ),
+            new SettingDefinition(
+                key:     'work.max_shift_minutes',
+                type:    'int',
+                default: 600,
+                label:   'Maximale Schichtdauer (Minuten)',
+                min:     1,
+                max:     1440,
+            ),
         );
     }
 
