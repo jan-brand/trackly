@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Controllers\AdminController;
 use App\Controllers\AuthController;
 use App\Controllers\HomeController;
+use App\Controllers\TimeEntryController;
 use App\Http\BadRequestException;
 use App\Http\Response;
 use App\Http\Router;
@@ -39,6 +40,38 @@ $router->post('/admin/settings', function (): Response {
     return (new AdminController())->saveSettings();
 });
 
+// -------------------------------------------------------------------------
+// Time entries (employee self-service)
+// -------------------------------------------------------------------------
+
+$router->get('/time-entries', function (): Response {
+    return (new TimeEntryController())->index();
+});
+
+$router->get('/time-entries/new', function (): Response {
+    return (new TimeEntryController())->newForm();
+});
+
+$router->post('/time-entries', function (): Response {
+    return (new TimeEntryController())->create();
+});
+
+$router->get('/time-entries/:id', function (): Response {
+    return (new TimeEntryController())->show();
+});
+
+$router->post('/time-entries/:id/cancel', function (): Response {
+    return (new TimeEntryController())->cancel();
+});
+
+$router->post('/time-entries/:id', function (): Response {
+    return (new TimeEntryController())->update();
+});
+
+// -------------------------------------------------------------------------
+// Dev/test helpers
+// -------------------------------------------------------------------------
+
 $router->get('/boom', function (): Response {
     throw new \RuntimeException('Boom! Test exception.');
 });
@@ -46,3 +79,4 @@ $router->get('/boom', function (): Response {
 $router->get('/demo/bad-request', function (): Response {
     throw new BadRequestException('Unknown query parameter.');
 });
+

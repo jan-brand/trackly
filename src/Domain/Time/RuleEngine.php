@@ -21,7 +21,7 @@ namespace App\Domain\Time;
  * @see RuleContext
  * @see Flag
  */
-final class RuleEngine
+final class RuleEngine implements RuleEngineInterface
 {
     /**
      * Evaluate all rules and return the sorted, deduplicated flag list.

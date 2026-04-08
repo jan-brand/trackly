@@ -197,6 +197,57 @@ class TimeEntryServiceTest extends TestCase
         return $stmt->fetchAll();
     }
 
+    // -------------------------------------------------------------------------
+    // T2.7: sort_index is persisted in evaluate() order
+    // -------------------------------------------------------------------------
+
+    public function testFlagsArePersistWithSortIndexInEvaluationOrder(): void
+    {
+        // Use a stub RuleEngine that returns flags in a fixed non-alphabetical order: [a, c, b]
+        $stubEngine = new class implements \App\Domain\Time\RuleEngineInterface {
+            public function evaluate(
+                \App\Domain\Time\TimeEntry $entry,
+                \App\Domain\Time\RuleContext $ctx,
+            ): array {
+                return [
+                    new \App\Domain\Time\Flag('a', null),
+                    new \App\Domain\Time\Flag('c', null),
+                    new \App\Domain\Time\Flag('b', null),
+                ];
+            }
+        };
+
+        $service = new TimeEntryService($this->pdo, $stubEngine, []);
+
+        $timeEntryId = $service->createManual(
+            actorUserId:  1,
+            targetUserId: 2,
+            input: [
+                'date_local'    => '2026-04-08',
+                'start_at'      => '2026-04-08 09:00:00',
+                'end_at'        => '2026-04-08 17:00:00',
+                'break_minutes' => 30,
+                'net_minutes'   => 450,
+                'reason'        => 'Sort index test',
+            ],
+        );
+
+        $stmt = $this->pdo->prepare(
+            'SELECT flag_key, sort_index FROM time_entry_flags
+              WHERE time_entry_id = :id ORDER BY sort_index ASC'
+        );
+        $stmt->execute([':id' => $timeEntryId]);
+        $rows = $stmt->fetchAll();
+
+        $this->assertCount(3, $rows);
+        $this->assertSame('a', $rows[0]['flag_key']);
+        $this->assertSame(1, (int) $rows[0]['sort_index']);
+        $this->assertSame('c', $rows[1]['flag_key']);
+        $this->assertSame(2, (int) $rows[1]['sort_index']);
+        $this->assertSame('b', $rows[2]['flag_key']);
+        $this->assertSame(3, (int) $rows[2]['sort_index']);
+    }
+
     private function createSchema(PDO $pdo): void
     {
         $pdo->exec("
@@ -225,6 +276,7 @@ class TimeEntryServiceTest extends TestCase
                 time_entry_id  INTEGER NOT NULL,
                 flag_key       TEXT    NOT NULL,
                 flag_value     TEXT    NULL,
+                sort_index     INTEGER NOT NULL DEFAULT 0,
                 created_at     TEXT    NOT NULL,
                 UNIQUE (time_entry_id, flag_key)
             )

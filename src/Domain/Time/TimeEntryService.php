@@ -20,14 +20,14 @@ use PDO;
 final class TimeEntryService
 {
     /**
-     * @param PDO              $pdo         Database connection
-     * @param RuleEngine|null  $ruleEngine  When null, flag evaluation is skipped
-     * @param array<string,mixed> $settings Application settings used to build RuleContext
+     * @param PDO                    $pdo         Database connection
+     * @param RuleEngineInterface|null $ruleEngine  When null, flag evaluation is skipped
+     * @param array<string,mixed>    $settings    Application settings used to build RuleContext
      */
     public function __construct(
-        private readonly PDO         $pdo,
-        private readonly ?RuleEngine $ruleEngine = null,
-        private readonly array       $settings   = [],
+        private readonly PDO                  $pdo,
+        private readonly ?RuleEngineInterface $ruleEngine = null,
+        private readonly array                $settings   = [],
     ) {}
 
     /**
@@ -274,15 +274,16 @@ final class TimeEntryService
         // Persist flags
         if (!empty($flags)) {
             $insertFlag = $this->pdo->prepare(
-                'INSERT INTO time_entry_flags (time_entry_id, flag_key, flag_value, created_at)
-                 VALUES (:time_entry_id, :flag_key, :flag_value, :created_at)'
+                'INSERT INTO time_entry_flags (time_entry_id, flag_key, flag_value, sort_index, created_at)
+                 VALUES (:time_entry_id, :flag_key, :flag_value, :sort_index, :created_at)'
             );
             $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
-            foreach ($flags as $flag) {
+            foreach ($flags as $sortIndex => $flag) {
                 $insertFlag->execute([
                     ':time_entry_id' => $timeEntryId,
                     ':flag_key'      => $flag->flagKey,
                     ':flag_value'    => $flag->flagValue,
+                    ':sort_index'    => $sortIndex + 1,
                     ':created_at'    => $now,
                 ]);
             }
