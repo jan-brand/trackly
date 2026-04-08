@@ -19,6 +19,36 @@ use App\Domain\Settings\SettingsRegistry;
 return function (PDO $pdo): void {
     $registry = new SettingsRegistry();
 
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+    $hasColumn = static function (string $column) use ($pdo, $driver): bool {
+        if ($driver === 'sqlite') {
+            $cols = $pdo->query("PRAGMA table_info(settings)");
+            if ($cols === false) {
+                return false;
+            }
+
+            foreach ($cols->fetchAll(PDO::FETCH_ASSOC) as $col) {
+                if (($col['name'] ?? null) === $column) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM settings LIKE :column");
+        if ($stmt === false) {
+            return false;
+        }
+
+        $stmt->execute([':column' => $column]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) !== false;
+    };
+
+    $hasLabel = $hasColumn('label');
+    $hasUiType = $hasColumn('ui_type');
+
     // Resolve the admin user id (first user with the 'admin' role).
     $adminUserId = 0;
     $stmt = $pdo->query(
@@ -38,42 +68,81 @@ return function (PDO $pdo): void {
 
     $now = (new DateTimeImmutable())->format('Y-m-d H:i:s');
 
-    // Use INSERT OR IGNORE (SQLite) / INSERT IGNORE (MariaDB) depending on
-    // the driver.  We detect via the driver name so both test (SQLite) and
-    // production (MariaDB) work without changes.
-    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    // Build insert dynamically so seeding also works before migration M0005.
+    $columns = ['`key`', '`value_json`'];
+    $values = [':key', ':value_json'];
+
+    if ($hasLabel) {
+        $columns[] = '`label`';
+        $values[] = ':label';
+    }
+    if ($hasUiType) {
+        $columns[] = '`ui_type`';
+        $values[] = ':ui_type';
+    }
+
+    $columns[] = '`updated_by_user_id`';
+    $columns[] = '`updated_at`';
+    $values[] = ':user_id';
+    $values[] = ':now';
 
     if ($driver === 'sqlite') {
-        $sql = 'INSERT OR IGNORE INTO settings (`key`, `value_json`, `label`, `ui_type`, `updated_by_user_id`, `updated_at`)
-                VALUES (:key, :value_json, :label, :ui_type, :user_id, :now)';
+        $sql = 'INSERT OR IGNORE INTO settings (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $values) . ')';
     } else {
-        $sql = 'INSERT IGNORE INTO settings (`key`, `value_json`, `label`, `ui_type`, `updated_by_user_id`, `updated_at`)
-                VALUES (:key, :value_json, :label, :ui_type, :user_id, :now)';
+        $sql = 'INSERT IGNORE INTO settings (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $values) . ')';
     }
 
     $insert = $pdo->prepare($sql);
 
-    // Back-fill label/ui_type for rows that were inserted before this migration
-    // (e.g. existing deployments).  Only updates rows where label is still empty.
-    $update = $pdo->prepare(
-        "UPDATE settings SET `label` = :label, `ui_type` = :ui_type
-          WHERE `key` = :key AND `label` = ''"
-    );
+    $update = null;
+    $updateSqlParts = [];
+    $updateWhereParts = ['`key` = :key'];
+
+    if ($hasLabel) {
+        $updateSqlParts[] = '`label` = :label';
+        $updateWhereParts[] = "`label` = ''";
+    }
+    if ($hasUiType) {
+        $updateSqlParts[] = '`ui_type` = :ui_type';
+        if (!$hasLabel) {
+            $updateWhereParts[] = "`ui_type` = ''";
+        }
+    }
+
+    if ($updateSqlParts !== []) {
+        $update = $pdo->prepare(
+            'UPDATE settings SET ' . implode(', ', $updateSqlParts)
+            . ' WHERE ' . implode(' AND ', $updateWhereParts)
+        );
+    }
 
     foreach ($registry->all() as $def) {
-        $insert->execute([
+        $insertParams = [
             ':key'        => $def->key,
             ':value_json' => json_encode($def->default, JSON_THROW_ON_ERROR),
-            ':label'      => $def->label ?? '',
-            ':ui_type'    => $def->uiType ?? '',
             ':user_id'    => $adminUserId,
             ':now'        => $now,
-        ]);
+        ];
 
-        $update->execute([
-            ':key'     => $def->key,
-            ':label'   => $def->label ?? '',
-            ':ui_type' => $def->uiType ?? '',
-        ]);
+        if ($hasLabel) {
+            $insertParams[':label'] = $def->label ?? '';
+        }
+        if ($hasUiType) {
+            $insertParams[':ui_type'] = $def->uiType ?? '';
+        }
+
+        $insert->execute($insertParams);
+
+        if ($update !== null) {
+            $params = [':key' => $def->key];
+            if ($hasLabel) {
+                $params[':label'] = $def->label ?? '';
+            }
+            if ($hasUiType) {
+                $params[':ui_type'] = $def->uiType ?? '';
+            }
+
+            $update->execute($params);
+        }
     }
 };
