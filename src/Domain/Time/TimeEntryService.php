@@ -124,11 +124,10 @@ final class TimeEntryService
             $params     = [':id' => $timeEntryId, ':updated_at' => $now];
 
             foreach ($updatable as $field) {
+                // $field comes exclusively from the $updatable whitelist above —
+                // no user input reaches this interpolation.
                 if (!array_key_exists($field, $input)) {
                     continue;
-                }
-                if (!preg_match('/^[a-z_]+$/', $field)) {
-                    throw new \InvalidArgumentException("Invalid field name: {$field}");
                 }
                 $setClauses[] = "`{$field}` = :{$field}";
                 $params[":{$field}"] = $input[$field];

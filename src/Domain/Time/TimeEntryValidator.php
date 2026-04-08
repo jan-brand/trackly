@@ -102,6 +102,8 @@ final class TimeEntryValidator
             throw new TimeEntryValidationException($errors);
         }
 
+        // HH:MM string comparison is correct here: both values are zero-padded
+        // (validated by regex above), so lexicographic order equals chronological order.
         $isOvernight = $endTime < $startTime;
 
         if ($isOvernight) {
