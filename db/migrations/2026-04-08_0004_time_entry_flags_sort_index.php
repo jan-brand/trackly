@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Migration M2.4 – Add sort_index to time_entry_flags.
+ * Migration 0004 – Add sort_index to time_entry_flags.
  *
  * sort_index stores the 1-based position of the flag as returned by
  * RuleEngine::evaluate(), enabling the UI to reproduce the stable

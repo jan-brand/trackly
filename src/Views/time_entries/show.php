@@ -159,7 +159,7 @@ $isCancelled = $entry['status'] === 'cancelled';
             <div class="c-form-group u-mb-4">
                 <label class="c-label" for="cancel_reason">Stornierungsgrund</label>
                 <textarea
-                    class="c-input<?= !empty($errors['reason']) && isset($old['cancel_reason']) ? ' is-invalid' : '' ?>"
+                    class="c-input<?= !empty($errors['reason']) ? ' is-invalid' : '' ?>"
                     id="cancel_reason"
                     name="reason"
                     rows="2"
