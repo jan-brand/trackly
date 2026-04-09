@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Controllers\AdminController;
 use App\Controllers\AuthController;
+use App\Controllers\ClarificationController;
+use App\Controllers\CoordinationController;
 use App\Controllers\HomeController;
 use App\Controllers\TimeEntryController;
 use App\Http\BadRequestException;
@@ -66,6 +68,38 @@ $router->post('/time-entries/:id/cancel', function (): Response {
 
 $router->post('/time-entries/:id', function (): Response {
     return (new TimeEntryController())->update();
+});
+
+// -------------------------------------------------------------------------
+// Coordination queue
+// -------------------------------------------------------------------------
+
+$router->get('/coordination/queue', function (): Response {
+    return (new CoordinationController())->queue();
+});
+
+$router->get('/coordination/time-entries/:id', function (): Response {
+    return (new CoordinationController())->show();
+});
+
+$router->post('/coordination/time-entries/:id/approve', function (): Response {
+    return (new CoordinationController())->approve();
+});
+
+$router->post('/coordination/time-entries/:id/request-clarification', function (): Response {
+    return (new CoordinationController())->requestClarification();
+});
+
+// -------------------------------------------------------------------------
+// Clarifications
+// -------------------------------------------------------------------------
+
+$router->get('/clarifications', function (): Response {
+    return (new ClarificationController())->index();
+});
+
+$router->post('/clarifications/:id/answer', function (): Response {
+    return (new ClarificationController())->answer();
 });
 
 // -------------------------------------------------------------------------

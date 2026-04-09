@@ -89,5 +89,10 @@ $isEmployee  = $loggedIn && Auth::hasRole('employee');
 <?php endif; ?>
 <?= $content ?? '' ?>
 </main>
+<footer>
+    <div class="l-wrapper" style="text-align: center; margin: 2rem auto 1.5rem">
+        <p>&copy; <?php echo date('Y'); ?> Trackly. Alle Rechte vorbehalten.</p>
+    </div>
+</footer>
 </body>
 </html>
