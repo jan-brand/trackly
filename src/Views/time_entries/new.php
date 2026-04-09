@@ -8,7 +8,7 @@ $title = $title ?? 'Neuer Zeiteintrag – Trackly';
 
 $esc = static fn(mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 
-$fieldClass = static fn(string $field) use ($errors): string =>
+$fieldClass = static fn(string $field): string =>
     'c-input' . (!empty($errors[$field]) ? ' is-invalid' : '');
 ?>
 <div class="l-section">
