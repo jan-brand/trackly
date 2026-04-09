@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Controllers\AdminController;
 use App\Controllers\AuthController;
+use App\Controllers\CoordinationController;
 use App\Controllers\HomeController;
 use App\Controllers\TimeEntryController;
 use App\Http\BadRequestException;
@@ -66,6 +67,14 @@ $router->post('/time-entries/:id/cancel', function (): Response {
 
 $router->post('/time-entries/:id', function (): Response {
     return (new TimeEntryController())->update();
+});
+
+// -------------------------------------------------------------------------
+// Coordination queue
+// -------------------------------------------------------------------------
+
+$router->post('/coordination/time-entries/:id/request-clarification', function (): Response {
+    return (new CoordinationController())->requestClarification();
 });
 
 // -------------------------------------------------------------------------
