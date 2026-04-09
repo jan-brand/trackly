@@ -6,6 +6,7 @@ use App\Controllers\AdminController;
 use App\Controllers\AuthController;
 use App\Controllers\HomeController;
 use App\Controllers\TimeEntryController;
+use App\Controllers\TimerController;
 use App\Http\BadRequestException;
 use App\Http\Response;
 use App\Http\Router;
@@ -66,6 +67,30 @@ $router->post('/time-entries/:id/cancel', function (): Response {
 
 $router->post('/time-entries/:id', function (): Response {
     return (new TimeEntryController())->update();
+});
+
+// -------------------------------------------------------------------------
+// Timer (employee self-service)
+// -------------------------------------------------------------------------
+
+$router->get('/timer', function (): Response {
+    return (new TimerController())->index();
+});
+
+$router->post('/timer/start', function (): Response {
+    return (new TimerController())->start();
+});
+
+$router->post('/timer/pause', function (): Response {
+    return (new TimerController())->pause();
+});
+
+$router->post('/timer/resume', function (): Response {
+    return (new TimerController())->resume();
+});
+
+$router->post('/timer/stop', function (): Response {
+    return (new TimerController())->stop();
 });
 
 // -------------------------------------------------------------------------
