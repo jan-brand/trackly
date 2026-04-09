@@ -230,6 +230,140 @@ final class TimeEntryService
     }
 
     // -------------------------------------------------------------------------
+    // Timer stop
+    // -------------------------------------------------------------------------
+
+    /**
+     * Atomically stop the active timer session for a user and create a time entry.
+     *
+     * Steps (all inside one transaction):
+     *   1. Lock the active timer session (SELECT … FOR UPDATE).
+     *   2. If no active session → return null (idempotent no-op).
+     *   3. Compute start_at / end_at / break_minutes / net_minutes.
+     *   4. Insert a time_entry with entry_source = 'timer'.
+     *   5. Evaluate rules + persist flags.
+     *   6. Write audit action = 'create' with reason = 'Timer gestoppt'.
+     *   7. If auto-approved (no flags) → additional audit action = 'auto_approve'.
+     *   8. Mark the timer_session as 'stopped'.
+     *
+     * @param  int  $userId  The employee whose timer to stop.
+     * @return int|null      The new time_entry ID, or null when there was no active session.
+     *
+     * @throws \JsonException|\PDOException|\Throwable
+     */
+    public function stopTimer(int $userId): ?int
+    {
+        $this->pdo->beginTransaction();
+
+        try {
+            $forUpdate = ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql')
+                ? ' FOR UPDATE'
+                : '';
+
+            $stmt = $this->pdo->prepare(
+                "SELECT * FROM timer_sessions
+                  WHERE user_id = :uid AND status IN ('running', 'paused')
+                  ORDER BY started_at DESC
+                  LIMIT 1" . $forUpdate
+            );
+            $stmt->execute([':uid' => $userId]);
+            $session = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($session === false) {
+                $this->pdo->rollBack();
+                return null;
+            }
+
+            $now       = new \DateTimeImmutable();
+            $nowStr    = $now->format('Y-m-d H:i:s');
+            $nowTs     = $now->getTimestamp();
+            $startedTs = (int) strtotime((string) $session['started_at']);
+
+            $totalPauseSecs = (int) $session['total_pause_seconds'];
+
+            if ($session['status'] === 'paused' && $session['paused_at'] !== null) {
+                $pausedTs        = (int) strtotime((string) $session['paused_at']);
+                $totalPauseSecs += max(0, $nowTs - $pausedTs);
+            }
+
+            $shiftSeconds = max(0, $nowTs - $startedTs);
+            $breakMinutes = (int) ($totalPauseSecs / 60);
+            $netMinutes   = max(0, (int) (($shiftSeconds - $totalPauseSecs) / 60));
+            $dateLocal    = date('Y-m-d', $startedTs);
+            $startAtStr   = date('Y-m-d H:i:s', $startedTs);
+
+            $insertStmt = $this->pdo->prepare(
+                'INSERT INTO time_entries
+                     (user_id, date_local, start_at, end_at, break_minutes,
+                      net_minutes, entry_source, status, created_at, updated_at)
+                 VALUES
+                     (:user_id, :date_local, :start_at, :end_at, :break_minutes,
+                      :net_minutes, :entry_source, :status, :created_at, :updated_at)'
+            );
+            $insertStmt->execute([
+                ':user_id'       => $userId,
+                ':date_local'    => $dateLocal,
+                ':start_at'      => $startAtStr,
+                ':end_at'        => $nowStr,
+                ':break_minutes' => $breakMinutes,
+                ':net_minutes'   => $netMinutes,
+                ':entry_source'  => 'timer',
+                ':status'        => 'pending',
+                ':created_at'    => $nowStr,
+                ':updated_at'    => $nowStr,
+            ]);
+
+            $timeEntryId = (int) $this->pdo->lastInsertId();
+
+            $flags  = $this->evaluateAndPersistFlags($timeEntryId, $userId, null);
+            $status = empty($flags) ? 'approved' : 'pending_approval';
+
+            $this->pdo->prepare(
+                'UPDATE time_entries SET status = :status, updated_at = :updated_at WHERE id = :id'
+            )->execute([':status' => $status, ':updated_at' => $nowStr, ':id' => $timeEntryId]);
+
+            $newRow = $this->fetchRow($timeEntryId);
+
+            $this->insertAuditLog(
+                $timeEntryId,
+                $userId,
+                'create',
+                'Timer gestoppt',
+                null,
+                TimeEntrySnapshot::fromRow($newRow),
+                $nowStr,
+            );
+
+            if ($status === 'approved') {
+                $this->insertAuditLog(
+                    $timeEntryId,
+                    $userId,
+                    'auto_approve',
+                    '',
+                    null,
+                    TimeEntrySnapshot::fromRow($newRow),
+                    $nowStr,
+                );
+            }
+
+            $this->pdo->prepare(
+                "UPDATE timer_sessions
+                    SET status = 'stopped', stopped_at = :stopped_at
+                  WHERE id = :id"
+            )->execute([':stopped_at' => $nowStr, ':id' => $session['id']]);
+
+            $this->pdo->commit();
+
+            return $timeEntryId;
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
 
