@@ -8,21 +8,32 @@ use App\Security\Csrf;
 
 $status = $timerSession['status'] ?? 'idle';
 
-// Compute the number of net elapsed seconds to seed the JS clock.
-// Running : (now − started_at) − total_pause_seconds  →  clock ticks live
-// Paused  : (paused_at − started_at) − total_pause_seconds  →  clock is frozen
-$seedSeconds = 0;
-$clockRunning = false;
+// Compute seconds to seed the JS clocks.
+//
+// Work clock:
+//   Running : (now − started_at) − total_pause_seconds  →  ticks live
+//   Paused  : (paused_at − started_at) − total_pause_seconds  →  frozen
+//
+// Pause clock:
+//   Running : total_pause_seconds  →  frozen (no new pause accumulating)
+//   Paused  : total_pause_seconds + (now − paused_at)  →  ticks live
+$seedSeconds      = 0;
+$clockRunning     = false;
+$pauseSeedSeconds = 0;
+$pauseTicking     = false;
 if ($timerSession !== null) {
     $startedTs      = (int) strtotime((string) $timerSession['started_at']);
     $totalPauseSecs = (int) $timerSession['total_pause_seconds'];
     if ($status === 'running') {
         $seedSeconds  = max(0, time() - $startedTs - $totalPauseSecs);
         $clockRunning = true;
+        $pauseSeedSeconds = $totalPauseSecs;
     } else {
-        // paused – freeze at the moment we paused
+        // paused – work clock freezes, pause clock ticks
         $pausedTs    = (int) strtotime((string) ($timerSession['paused_at'] ?? $timerSession['started_at']));
         $seedSeconds = max(0, $pausedTs - $startedTs - $totalPauseSecs);
+        $pauseSeedSeconds = $totalPauseSecs + max(0, time() - $pausedTs);
+        $pauseTicking     = true;
     }
 }
 ?>
@@ -39,8 +50,11 @@ if ($timerSession !== null) {
                 </form>
             <?php elseif ($status === 'running'): ?>
                 <p class="is-running">Läuft</p>
-                <p class="u-text-xl u-tabular-nums">
+                <p class="u-text-xl" style="font-variant-numeric: tabular-nums;">
                     <span id="timer-display" aria-live="off" aria-atomic="true">--:--:--</span>
+                </p>
+                <p class="u-text-sm u-text-muted">
+                    Pause: <span id="pause-display" style="font-variant-numeric: tabular-nums;">--:--:--</span>
                 </p>
                 <div class="l-cluster">
                     <form method="post" action="/timer/pause">
@@ -54,8 +68,11 @@ if ($timerSession !== null) {
                 </div>
             <?php else: ?>
                 <p class="is-paused">Pausiert</p>
-                <p class="u-text-xl u-tabular-nums">
+                <p class="u-text-xl" style="font-variant-numeric: tabular-nums;">
                     <span id="timer-display" aria-live="off" aria-atomic="true">--:--:--</span>
+                </p>
+                <p class="u-text-sm u-text-muted">
+                    Pause: <span id="pause-display" style="font-variant-numeric: tabular-nums;">--:--:--</span>
                 </p>
                 <div class="l-cluster">
                     <form method="post" action="/timer/resume">
@@ -77,26 +94,35 @@ if ($timerSession !== null) {
 (function () {
     'use strict';
 
-    var el      = document.getElementById('timer-display');
-    if (!el) return;
+    var workEl  = document.getElementById('timer-display');
+    var pauseEl = document.getElementById('pause-display');
+    if (!workEl || !pauseEl) return;
 
-    var seconds  = <?= (int) $seedSeconds ?>;
-    var ticking  = <?= $clockRunning ? 'true' : 'false' ?>;
+    var workSecs   = <?= (int) $seedSeconds ?>;
+    var pauseSecs  = <?= (int) $pauseSeedSeconds ?>;
+    var workTicks  = <?= $clockRunning ? 'true' : 'false' ?>;
+    var pauseTicks = <?= $pauseTicking ? 'true' : 'false' ?>;
 
     function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
+    function fmt(s) {
+        var h = Math.floor(s / 3600);
+        var m = Math.floor((s % 3600) / 60);
+        var sec = s % 60;
+        return pad(h) + ':' + pad(m) + ':' + pad(sec);
+    }
+
     function render() {
-        var h = Math.floor(seconds / 3600);
-        var m = Math.floor((seconds % 3600) / 60);
-        var s = seconds % 60;
-        el.textContent = pad(h) + ':' + pad(m) + ':' + pad(s);
+        workEl.textContent  = fmt(workSecs);
+        pauseEl.textContent = fmt(pauseSecs);
     }
 
     render();
 
-    if (ticking) {
+    if (workTicks || pauseTicks) {
         setInterval(function () {
-            seconds += 1;
+            if (workTicks)  workSecs  += 1;
+            if (pauseTicks) pauseSecs += 1;
             render();
         }, 1000);
     }
