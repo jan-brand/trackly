@@ -212,17 +212,12 @@ class TimerTest extends TestCase
     }
 
     // =========================================================================
-    // TM4.4 Must-have: non-employee GET /timer ⇒ 403
+    // TM4.4 Must-have: unauthenticated GET /timer ⇒ 403
     // =========================================================================
 
-    public function testNonEmployeeGetTimerReturns403(): void
+    public function testUnauthenticatedGetTimerReturns403(): void
     {
-        $userId = $this->createUser('coord@example.com');
-
-        $result = dispatch('GET', '/timer', [], [
-            'user_id'      => $userId,
-            '__user_roles' => ['coordination'],
-        ]);
+        $result = dispatch('GET', '/timer', [], []);
 
         $this->assertSame(403, $result['status']);
     }

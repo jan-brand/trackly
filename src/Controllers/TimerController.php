@@ -17,7 +17,7 @@ use App\Support\Flash;
 use PDO;
 
 /**
- * Handles timer actions for employee self-service.
+ * Handles timer actions for employee/coordinator/admin self-service.
  *
  * Routes:
  *   GET  /timer          → index()
@@ -28,13 +28,15 @@ use PDO;
  */
 final class TimerController
 {
+    /** Roles allowed to use the timer. */
+    private const TIMER_ROLES = ['employee', 'coordination', 'admin'];
     // -------------------------------------------------------------------------
     // GET /timer
     // -------------------------------------------------------------------------
 
     public function index(): Response
     {
-        Guard::requireRole(['employee']);
+        Guard::requireRole(self::TIMER_ROLES);
 
         $userId = (int) Auth::userId();
         $pdo    = Db::pdo();
@@ -62,7 +64,7 @@ final class TimerController
 
     public function start(): Response
     {
-        Guard::requireLogin();
+        Guard::requireRole(self::TIMER_ROLES);
         Csrf::verifyOrFail();
 
         $userId = (int) Auth::userId();
@@ -99,7 +101,7 @@ final class TimerController
 
     public function pause(): Response
     {
-        Guard::requireLogin();
+        Guard::requireRole(self::TIMER_ROLES);
         Csrf::verifyOrFail();
 
         $userId = (int) Auth::userId();
@@ -136,7 +138,7 @@ final class TimerController
 
     public function resume(): Response
     {
-        Guard::requireLogin();
+        Guard::requireRole(self::TIMER_ROLES);
         Csrf::verifyOrFail();
 
         $userId = (int) Auth::userId();
@@ -180,7 +182,7 @@ final class TimerController
 
     public function stop(): Response
     {
-        Guard::requireLogin();
+        Guard::requireRole(self::TIMER_ROLES);
         Csrf::verifyOrFail();
 
         $userId      = (int) Auth::userId();
