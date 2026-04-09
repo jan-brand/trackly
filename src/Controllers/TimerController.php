@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Db\Db;
+use App\Domain\Settings\Settings;
+use App\Domain\Settings\SettingsRegistry;
+use App\Domain\Time\RuleEngine;
+use App\Domain\Time\TimeEntryService;
 use App\Http\Response;
 use App\Security\Auth;
 use App\Security\Csrf;
@@ -30,7 +34,7 @@ final class TimerController
 
     public function index(): Response
     {
-        Guard::requireLogin();
+        Guard::requireRole(['employee']);
 
         $userId = (int) Auth::userId();
         $pdo    = Db::pdo();
@@ -44,7 +48,7 @@ final class TimerController
         $stmt->execute([':uid' => $userId]);
         $session = $stmt->fetch() ?: null;
 
-        $body = renderView('timer/index', [
+        $body = renderView('timer/show', [
             'title'         => 'Timer – Trackly',
             'timerSession'  => $session,
         ]);
@@ -179,37 +183,32 @@ final class TimerController
         Guard::requireLogin();
         Csrf::verifyOrFail();
 
-        $userId = (int) Auth::userId();
-        $pdo    = Db::pdo();
+        $userId      = (int) Auth::userId();
+        $service     = $this->makeService();
+        $timeEntryId = $service->stopTimer($userId);
 
-        $pdo->beginTransaction();
-        try {
-            $existing = $this->lockActiveSession($pdo, $userId);
-
-            if ($existing === null) {
-                $pdo->rollBack();
-                return new Response(303, ['Location' => '/timer'], '');
-            }
-
-            $pdo->prepare(
-                "UPDATE timer_sessions
-                    SET status = 'stopped', stopped_at = CURRENT_TIMESTAMP
-                  WHERE id = :id"
-            )->execute([':id' => $existing['id']]);
-
-            $pdo->commit();
-        } catch (\Throwable $e) {
-            $pdo->rollBack();
-            throw $e;
+        if ($timeEntryId === null) {
+            return new Response(303, ['Location' => '/timer'], '');
         }
 
         Flash::addSuccess('Timer gestoppt.');
-        return new Response(303, ['Location' => '/timer'], '');
+        return new Response(303, ['Location' => '/time-entries/' . $timeEntryId], '');
     }
 
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    private function makeService(): TimeEntryService
+    {
+        $registry = new SettingsRegistry();
+        $settings = new Settings(Db::pdo(), $registry);
+        return new TimeEntryService(
+            Db::pdo(),
+            new RuleEngine(),
+            $settings->all(),
+        );
+    }
 
     /**
      * Lock the active (running or paused) timer session for the given user.
