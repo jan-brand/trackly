@@ -8,6 +8,7 @@ use App\Controllers\ClarificationController;
 use App\Controllers\CoordinationController;
 use App\Controllers\HomeController;
 use App\Controllers\TimeEntryController;
+use App\Controllers\TimerController;
 use App\Http\BadRequestException;
 use App\Http\Response;
 use App\Http\Router;
@@ -71,6 +72,27 @@ $router->post('/time-entries/:id', function (): Response {
 });
 
 // -------------------------------------------------------------------------
+// Timer (employee self-service)
+// -------------------------------------------------------------------------
+
+$router->get('/timer', function (): Response {
+    return (new TimerController())->index();
+});
+
+$router->post('/timer/start', function (): Response {
+    return (new TimerController())->start();
+});
+
+$router->post('/timer/pause', function (): Response {
+    return (new TimerController())->pause();
+});
+
+$router->post('/timer/resume', function (): Response {
+    return (new TimerController())->resume();
+});
+
+$router->post('/timer/stop', function (): Response {
+    return (new TimerController())->stop();
 // Coordination queue
 // -------------------------------------------------------------------------
 
