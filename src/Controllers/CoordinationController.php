@@ -18,7 +18,9 @@ use PDO;
  *
  * Routes:
  *   GET  /coordination/queue                                   → queue()
- *   POST /coordination/time-entries/:id/request-clarification → requestClarification()
+ *   GET  /coordination/time-entries/:id                        → show()
+ *   POST /coordination/time-entries/:id/approve                → approve()
+ *   POST /coordination/time-entries/:id/request-clarification  → requestClarification()
  */
 final class CoordinationController
 {
@@ -146,6 +148,152 @@ final class CoordinationController
         ]);
 
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /coordination/time-entries/:id
+    // -------------------------------------------------------------------------
+
+    public function show(): Response
+    {
+        Guard::requireRole(['coordination', 'admin']);
+
+        $id  = $this->routeId();
+        $pdo = Db::pdo();
+
+        $stmt = $pdo->prepare('SELECT * FROM time_entries WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        $entry = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($entry === false) {
+            throw new \App\Http\ForbiddenException('Entry not found.');
+        }
+
+        // Fetch user display_name / email
+        $stmt = $pdo->prepare('SELECT email FROM users WHERE id = :id');
+        $stmt->execute([':id' => $entry['user_id']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $displayName = $user['email'] ?? '–';
+
+        // Flags (message_admin only)
+        $stmt = $pdo->prepare(
+            "SELECT * FROM time_entry_flags
+              WHERE time_entry_id = :id AND flag_key = 'message_admin'
+              ORDER BY sort_index ASC"
+        );
+        $stmt->execute([':id' => $id]);
+        $flags = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Audit log (newest first)
+        $stmt = $pdo->prepare(
+            'SELECT * FROM time_entry_audit_log
+              WHERE time_entry_id = :id
+              ORDER BY created_at DESC, id DESC'
+        );
+        $stmt->execute([':id' => $id]);
+        $auditLog = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Open clarifications
+        $stmt = $pdo->prepare(
+            "SELECT * FROM clarifications
+              WHERE time_entry_id = :id AND status = 'open'
+              ORDER BY created_at ASC"
+        );
+        $stmt->execute([':id' => $id]);
+        $openClarifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $body = renderView('coordination/time_entries/show', [
+            'title'              => 'Zeiteintrag – Koordination – Trackly',
+            'entry'              => $entry,
+            'displayName'        => $displayName,
+            'flags'              => $flags,
+            'auditLog'           => $auditLog,
+            'openClarifications' => $openClarifications,
+        ]);
+
+        return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /coordination/time-entries/:id/approve
+    // -------------------------------------------------------------------------
+
+    public function approve(): Response
+    {
+        Csrf::verifyOrFail();
+        Guard::requireRole(['coordination', 'admin']);
+
+        $id          = $this->routeId();
+        $actorUserId = (int) Auth::userId();
+        $pdo         = Db::pdo();
+
+        $pdo->beginTransaction();
+
+        try {
+            $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+
+            $forUpdate = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+            $stmt = $pdo->prepare('SELECT * FROM time_entries WHERE id = :id' . $forUpdate);
+            $stmt->execute([':id' => $id]);
+            $entry = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($entry === false) {
+                throw new \App\Http\ForbiddenException('Entry not found.');
+            }
+
+            // Idempotent: already approved → success without new audit
+            if ($entry['status'] === 'approved') {
+                $pdo->commit();
+                Flash::addSuccess('Zeiteintrag wurde freigegeben.');
+                return new Response(303, ['Location' => '/coordination/queue'], '');
+            }
+
+            // Set approved
+            $pdo->prepare(
+                'UPDATE time_entries
+                    SET status = :status,
+                        approved_by_user_id = :approved_by,
+                        approved_at = :approved_at,
+                        updated_at = :updated_at
+                  WHERE id = :id'
+            )->execute([
+                ':status'      => 'approved',
+                ':approved_by' => $actorUserId,
+                ':approved_at' => $now,
+                ':updated_at'  => $now,
+                ':id'          => $id,
+            ]);
+
+            $newRow = $pdo->prepare('SELECT * FROM time_entries WHERE id = :id');
+            $newRow->execute([':id' => $id]);
+            $newEntry = $newRow->fetch(PDO::FETCH_ASSOC);
+
+            $pdo->prepare(
+                'INSERT INTO time_entry_audit_log
+                     (time_entry_id, actor_user_id, action, reason, old_json, new_json, created_at)
+                 VALUES
+                     (:time_entry_id, :actor_user_id, :action, :reason, :old_json, :new_json, :created_at)'
+            )->execute([
+                ':time_entry_id' => $id,
+                ':actor_user_id' => $actorUserId,
+                ':action'        => 'approve',
+                ':reason'        => 'Freigegeben',
+                ':old_json'      => json_encode($entry, JSON_THROW_ON_ERROR),
+                ':new_json'      => json_encode($newEntry, JSON_THROW_ON_ERROR),
+                ':created_at'    => $now,
+            ]);
+
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        Flash::addSuccess('Zeiteintrag wurde freigegeben.');
+
+        return new Response(303, ['Location' => '/coordination/queue'], '');
     }
 
     // -------------------------------------------------------------------------

@@ -78,6 +78,14 @@ $router->get('/coordination/queue', function (): Response {
     return (new CoordinationController())->queue();
 });
 
+$router->get('/coordination/time-entries/:id', function (): Response {
+    return (new CoordinationController())->show();
+});
+
+$router->post('/coordination/time-entries/:id/approve', function (): Response {
+    return (new CoordinationController())->approve();
+});
+
 $router->post('/coordination/time-entries/:id/request-clarification', function (): Response {
     return (new CoordinationController())->requestClarification();
 });
