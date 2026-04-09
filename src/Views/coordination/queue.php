@@ -113,7 +113,7 @@ $formatDateTime = static function (string $dt): string {
                         </span>
                     </td>
                     <td class="u-text-right">
-                        <a href="/time-entries/<?= $esc($entry['id']) ?>"
+                        <a href="/coordination/time-entries/<?= $esc($entry['id']) ?>"
                            class="c-btn c-btn--sm c-btn--secondary">Details</a>
                     </td>
                 </tr>

@@ -29,29 +29,20 @@ final class ClarificationController
 
     public function index(): Response
     {
-        Guard::requireLogin();
+        Guard::requireRole(['employee']);
 
         $pdo    = Db::pdo();
         $userId = (int) Auth::userId();
-        $isCoordOrAdmin = Auth::hasAnyRole(['coordination', 'admin']);
 
-        if ($isCoordOrAdmin) {
-            $stmt = $pdo->query(
-                'SELECT c.*, te.user_id AS entry_user_id
-                   FROM clarifications c
-                   JOIN time_entries te ON te.id = c.time_entry_id
-                  ORDER BY c.created_at DESC'
-            );
-        } else {
-            $stmt = $pdo->prepare(
-                'SELECT c.*, te.user_id AS entry_user_id
-                   FROM clarifications c
-                   JOIN time_entries te ON te.id = c.time_entry_id
-                  WHERE te.user_id = :uid
-                  ORDER BY c.created_at DESC'
-            );
-            $stmt->execute([':uid' => $userId]);
-        }
+        $stmt = $pdo->prepare(
+            "SELECT c.*, te.user_id AS entry_user_id
+               FROM clarifications c
+               JOIN time_entries te ON te.id = c.time_entry_id
+              WHERE te.user_id = :uid
+              ORDER BY CASE WHEN c.status = 'open' THEN 0 ELSE 1 END ASC,
+                       c.created_at DESC"
+        );
+        $stmt->execute([':uid' => $userId]);
 
         $clarifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
