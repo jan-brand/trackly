@@ -17,10 +17,137 @@ use PDO;
  * Coordination queue actions.
  *
  * Routes:
+ *   GET  /coordination/queue                                   → queue()
  *   POST /coordination/time-entries/:id/request-clarification → requestClarification()
  */
 final class CoordinationController
 {
+    private const ALLOWED_PARAMS = ['tab', 'month', 'status', 'user_id', 'sort'];
+
+    private const ALLOWED_TABS     = ['times', 'announcements'];
+    private const ALLOWED_STATUSES = ['pending_approval', 'in_clarification', 'all'];
+    private const ALLOWED_SORTS    = ['oldest', 'newest', 'person_asc'];
+
+    // -------------------------------------------------------------------------
+    // GET /coordination/queue
+    // -------------------------------------------------------------------------
+
+    public function queue(): Response
+    {
+        Guard::requireRole(['coordination', 'admin']);
+
+        // Parse query params from the request URI (compatible with CLI test harness)
+        $query = [];
+        parse_str(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY) ?? '', $query);
+
+        // Whitelist query params – unknown keys ⇒ 400
+        foreach (array_keys($query) as $key) {
+            if (!in_array($key, self::ALLOWED_PARAMS, true)) {
+                throw new BadRequestException('Unknown query parameter: ' . $key);
+            }
+        }
+
+        // tab
+        $tab = $query['tab'] ?? 'times';
+        if (!in_array($tab, self::ALLOWED_TABS, true)) {
+            throw new BadRequestException('Invalid tab value.');
+        }
+
+        // month (YYYY-MM), default = current month
+        $defaultMonth = (new \DateTimeImmutable())->format('Y-m');
+        $month        = $query['month'] ?? $defaultMonth;
+        if (!preg_match('/^\d{4}-(?:0[1-9]|1[0-2])$/', (string) $month)) {
+            throw new BadRequestException('Invalid month value.');
+        }
+
+        // status
+        $status = $query['status'] ?? 'all';
+        if (!in_array($status, self::ALLOWED_STATUSES, true)) {
+            throw new BadRequestException('Invalid status value.');
+        }
+
+        // user_id (optional, must be a positive integer when present)
+        $userId = null;
+        if (isset($query['user_id'])) {
+            $userId = filter_var($query['user_id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($userId === false) {
+                throw new BadRequestException('Invalid user_id value.');
+            }
+            $userId = (int) $userId;
+        }
+
+        // sort
+        $sort = $query['sort'] ?? 'oldest';
+        if (!in_array($sort, self::ALLOWED_SORTS, true)) {
+            throw new BadRequestException('Invalid sort value.');
+        }
+
+        // tab=announcements placeholder
+        if ($tab === 'announcements') {
+            $body = renderView('coordination/queue', [
+                'title'   => 'Queue – Ankündigungen – Trackly',
+                'heading' => 'Queue – Ankündigungen',
+                'tab'     => 'announcements',
+                'entries' => [],
+                'month'   => $month,
+                'status'  => $status,
+                'sort'    => $sort,
+                'userId'  => $userId,
+            ]);
+            return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+        }
+
+        // tab=times – build read-model
+        $pdo = Db::pdo();
+
+        $monthStart = $month . '-01';
+        $monthEnd   = date('Y-m-t', strtotime($monthStart));
+
+        $where  = ['te.date_local BETWEEN :month_start AND :month_end'];
+        $params = [':month_start' => $monthStart, ':month_end' => $monthEnd];
+
+        if ($status !== 'all') {
+            $where[]            = 'te.status = :status';
+            $params[':status']  = $status;
+        }
+
+        if ($userId !== null) {
+            $where[]            = 'te.user_id = :user_id';
+            $params[':user_id'] = $userId;
+        }
+
+        $orderBy = match ($sort) {
+            'newest'     => 'te.start_at DESC',
+            'person_asc' => 'u.email ASC, te.start_at ASC',
+            default      => 'te.start_at ASC',  // oldest
+        };
+
+        $whereClause = implode(' AND ', $where);
+
+        $stmt = $pdo->prepare(
+            "SELECT te.*, u.email AS user_email
+               FROM time_entries te
+               JOIN users u ON u.id = te.user_id
+              WHERE {$whereClause}
+              ORDER BY {$orderBy}"
+        );
+        $stmt->execute($params);
+        $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $body = renderView('coordination/queue', [
+            'title'   => 'Koordinations-Queue – Trackly',
+            'heading' => 'Queue – Zeiteinträge',
+            'tab'     => 'times',
+            'entries' => $entries,
+            'month'   => $month,
+            'status'  => $status,
+            'sort'    => $sort,
+            'userId'  => $userId,
+        ]);
+
+        return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+    }
+
     // -------------------------------------------------------------------------
     // POST /coordination/time-entries/:id/request-clarification
     // -------------------------------------------------------------------------
