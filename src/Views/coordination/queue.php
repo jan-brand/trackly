@@ -42,7 +42,7 @@ $formatDateTime = static function (string $dt): string {
                 Zeiteinträge
             </a>
             <a class="c-btn c-btn--sm <?= $tab === 'announcements' ? 'c-btn--primary' : 'c-btn--secondary' ?>"
-               href="/announcements">
+               href="/coordination/queue?tab=announcements">
                 Ankündigungen
             </a>
         </nav>
