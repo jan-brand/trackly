@@ -100,6 +100,15 @@ final class SettingsRegistry
                 uiType:  'time',
                 regex:   '/^\d{2}:\d{2}$/',
             ),
+            new SettingDefinition(
+                key:     'youth.max_daily_regular_minutes',
+                type:    'int',
+                default: 480,
+                label:   'Tägliche Regelarbeitszeit (Jugendliche)',
+                uiType:  'duration',
+                min:     0,
+                max:     1440,
+            ),
             // ----------------------------------------------------------------
             // Tracking behaviour (bool examples)
             // ----------------------------------------------------------------
@@ -150,6 +159,25 @@ final class SettingsRegistry
                 default: 600,
                 label:   'Maximale Schichtdauer (Minuten)',
                 min:     1,
+                max:     1440,
+            ),
+            // ----------------------------------------------------------------
+            // Announcement rules
+            // ----------------------------------------------------------------
+            new SettingDefinition(
+                key:     'announcement.min_notice_hours',
+                type:    'int',
+                default: 72,
+                label:   'Mindestvorlaufzeit für Ankündigungen (Stunden)',
+                min:     0,
+                max:     8760,
+            ),
+            new SettingDefinition(
+                key:     'announcement.max_deviation_minutes',
+                type:    'int',
+                default: 30,
+                label:   'Maximale Abweichung von Ankündigungszeit (Minuten)',
+                min:     0,
                 max:     1440,
             ),
         );

@@ -46,6 +46,12 @@ final class RuleEngine implements RuleEngineInterface
         // B4 – Break too short (≥ 9 h shift)
         $accumulated = array_merge($accumulated, $this->ruleBreakTooShort9h($entry, $ctx));
 
+        // B15 – Announcement missing
+        $accumulated = array_merge($accumulated, $this->ruleAnnouncementMissing($entry, $ctx));
+
+        // B15 – Announcement deviation
+        $accumulated = array_merge($accumulated, $this->ruleAnnouncementDeviation($entry, $ctx));
+
         return $this->sortAndDeduplicate($accumulated);
     }
 
@@ -95,6 +101,105 @@ final class RuleEngine implements RuleEngineInterface
             return [new Flag('break_too_short', (string) $entry->breakMinutes)];
         }
         return [];
+    }
+
+    /**
+     * B15a – Announcement missing.
+     *
+     * An announcement is required when:
+     *   – the shift falls on a weekend, OR
+     *   – shift_minutes > maxDailyRegularMinutes
+     *
+     * If required and no approved announcement exists for the same user/date,
+     * return an `announcement_missing` flag.
+     *
+     * @return list<Flag>
+     */
+    private function ruleAnnouncementMissing(TimeEntry $entry, RuleContext $ctx): array
+    {
+        if (!$this->isAnnouncementRequired($entry, $ctx)) {
+            return [];
+        }
+
+        if ($ctx->approvedAnnouncements !== []) {
+            return [];
+        }
+
+        return [new Flag('announcement_missing')];
+    }
+
+    /**
+     * B15b – Announcement deviation.
+     *
+     * If an approved announcement exists for the same user/date, select the
+     * candidate with the smallest abs(planned_start_at − start_at).
+     * If that deviation exceeds maxDeviationMinutes, return an
+     * `announcement_deviation` flag with the deviation in minutes as value.
+     *
+     * Only evaluated when an announcement is required.
+     *
+     * @return list<Flag>
+     */
+    private function ruleAnnouncementDeviation(TimeEntry $entry, RuleContext $ctx): array
+    {
+        if (!$this->isAnnouncementRequired($entry, $ctx)) {
+            return [];
+        }
+
+        if ($ctx->approvedAnnouncements === []) {
+            return [];
+        }
+
+        $entryStartTs = strtotime($entry->startAt);
+        if ($entryStartTs === false) {
+            return [];
+        }
+
+        // Select candidate with smallest abs deviation.
+        $bestDeviation = PHP_INT_MAX;
+        foreach ($ctx->approvedAnnouncements as $ann) {
+            $annStartTs = strtotime((string) $ann['planned_start_at']);
+            if ($annStartTs === false) {
+                continue;
+            }
+            $deviation = abs($entryStartTs - $annStartTs);
+            if ($deviation < $bestDeviation) {
+                $bestDeviation = $deviation;
+            }
+        }
+
+        $deviationMinutes = (int) round($bestDeviation / 60);
+
+        if ($deviationMinutes > $ctx->maxDeviationMinutes) {
+            return [new Flag('announcement_deviation', (string) $deviationMinutes)];
+        }
+
+        return [];
+    }
+
+    /**
+     * Determine whether an announcement is required for this time entry.
+     *
+     * Required when the shift falls on a weekend OR shift_minutes > maxDailyRegularMinutes.
+     */
+    private function isAnnouncementRequired(TimeEntry $entry, RuleContext $ctx): bool
+    {
+        $shiftMinutes = $entry->netMinutes + $entry->breakMinutes;
+
+        if ($shiftMinutes > $ctx->maxDailyRegularMinutes) {
+            return true;
+        }
+
+        // Check if the entry date is a weekend (Saturday=6, Sunday=0).
+        $ts = strtotime($entry->dateLocal);
+        if ($ts !== false) {
+            $dow = (int) date('w', $ts);
+            if ($dow === 0 || $dow === 6) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // -------------------------------------------------------------------------
