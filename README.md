@@ -7,6 +7,7 @@ Trackly ist eine SSR-first Zeiterfassung (PHP 8.2 + MariaDB) für kleine Vereine
 - PHP >= 8.2
 - Composer
 - MySQL / MariaDB
+- [wkhtmltopdf](https://wkhtmltopdf.org/) (für den PDF-Export)
 
 ## Setup
 
@@ -20,7 +21,7 @@ composer install
 
 # 3. Umgebungsvariablen konfigurieren
 cp .env.example .env
-# .env anpassen (DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, ADMIN_EMAIL, ADMIN_PASSWORD)
+# .env anpassen (DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, ADMIN_EMAIL, ADMIN_PASSWORD, WKHTMLTOPDF_PATH)
 
 # 4. Datenbank-Migrationen ausführen
 php bin/migrate.php
@@ -37,6 +38,28 @@ php -S localhost:8000 -t public
 ```bash
 vendor/bin/phpunit
 ```
+
+## PDF-Export (wkhtmltopdf)
+
+Der PDF-Export benötigt das Kommandozeilenwerkzeug [wkhtmltopdf](https://wkhtmltopdf.org/).
+
+**Installation:**
+
+```bash
+# Debian / Ubuntu
+sudo apt-get install wkhtmltopdf
+
+# macOS (Homebrew)
+brew install wkhtmltopdf
+```
+
+Anschließend den Pfad zur Binary in `.env` eintragen:
+
+```dotenv
+WKHTMLTOPDF_PATH=/usr/bin/wkhtmltopdf
+```
+
+Den tatsächlichen Pfad erhält man mit `which wkhtmltopdf`.
 
 ## Passwort zurücksetzen
 
