@@ -1,18 +1,3 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>Trackly Export <?= htmlspecialchars($month ?? '', ENT_QUOTES, 'UTF-8') ?></title>
-    <style>
-        body { font-family: Arial, sans-serif; font-size: 11pt; margin: 2cm; }
-        h1 { font-size: 14pt; margin-bottom: 0.5em; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
-        th, td { border: 1px solid #aaa; padding: 4px 8px; text-align: left; }
-        th { background: #eee; font-weight: bold; }
-        tr:nth-child(even) { background: #f9f9f9; }
-    </style>
-</head>
-<body>
 <?php
 declare(strict_types=1);
 
@@ -30,6 +15,21 @@ $formatTime = static function (string $dt): string {
     return $dt;
 };
 ?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Trackly Export <?= htmlspecialchars($month ?? '', ENT_QUOTES, 'UTF-8') ?></title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 11pt; margin: 2cm; }
+        h1 { font-size: 14pt; margin-bottom: 0.5em; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+        th, td { border: 1px solid #aaa; padding: 4px 8px; text-align: left; }
+        th { background: #eee; font-weight: bold; }
+        tr:nth-child(even) { background: #f9f9f9; }
+    </style>
+</head>
+<body>
 <h1>Zeiterfassung – <?= $esc($month) ?></h1>
 
 <table>
