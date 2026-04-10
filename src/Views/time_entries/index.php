@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
 
-/** @var list<array<string, mixed>>     $entries      Rows from time_entries */
-/** @var array<string, string>          $statusLabels Status → human-readable label */
+/** @var list<array<string, mixed>>     $entries               Rows from time_entries */
+/** @var array<string, string>          $statusLabels          Status → human-readable label */
+/** @var list<array<string, mixed>>     $announcements         Rows from announcements */
+/** @var array<string, string>          $announcementStatuses  status → human-readable label */
 
 $title = $title ?? 'Meine Zeiteinträge – Trackly';
 
@@ -149,5 +151,60 @@ foreach ($entries as $entry) {
                 </div>
             </section>
         </div>
+
+        <!-- Announcements section -->
+        <?php if (!empty($announcements)): ?>
+        <div class="l-stack l-stack--lg u-mt-8">
+            <section class="l-card">
+                <div class="l-stack l-stack--sm">
+                    <div class="l-cluster l-cluster--space">
+                        <div class="l-stack l-stack--xs">
+                            <p class="u-text-xs u-font-semibold u-text-primary u-mb-0">Ankündigungen</p>
+                            <h2 class="u-mb-0">Meine Ankündigungen</h2>
+                        </div>
+                        <div class="l-cluster l-cluster--end">
+                            <a class="c-btn c-btn--secondary c-btn--sm" href="/announcements">Alle anzeigen</a>
+                            <a class="c-btn c-btn--primary c-btn--sm" href="/announcements/new">+ Neue Ankündigung</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section class="l-card u-p-0 u-overflow-hidden">
+                <div class="c-table-wrapper">
+                    <table class="c-table c-table--compact">
+                        <thead>
+                        <tr>
+                            <th scope="col">Datum</th>
+                            <th scope="col">Beginn (geplant)</th>
+                            <th scope="col">Ende (geplant)</th>
+                            <th scope="col" class="c-table__num">Netto</th>
+                            <th scope="col">Status</th>
+                            <th scope="col"></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($announcements as $ann): ?>
+                        <tr>
+                            <td><?= $esc($ann['date_local']) ?></td>
+                            <td><?= $esc($formatDateTime($ann['planned_start_at'])) ?></td>
+                            <td><?= $esc($formatDateTime($ann['planned_end_at'])) ?></td>
+                            <td class="c-table__num"><?= $esc($ann['net_minutes']) ?> min</td>
+                            <td>
+                                <span class="c-badge c-badge--<?= $esc($ann['status']) ?>">
+                                    <?= $esc($announcementStatuses[$ann['status']] ?? $ann['status']) ?>
+                                </span>
+                            </td>
+                            <td class="u-text-right">
+                                <a href="/announcements/<?= $esc($ann['id']) ?>"
+                                   class="c-btn c-btn--sm c-btn--secondary">Details</a>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+        <?php endif; ?>
     </div>
 </div>

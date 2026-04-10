@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Db\Db;
+use App\Domain\Announcement\AnnouncementService;
 use App\Http\BadRequestException;
 use App\Http\Response;
 use App\Security\Auth;
@@ -27,7 +28,7 @@ final class CoordinationController
     private const ALLOWED_PARAMS = ['tab', 'month', 'status', 'user_id', 'sort'];
 
     private const ALLOWED_TABS     = ['times', 'announcements'];
-    private const ALLOWED_STATUSES = ['pending_approval', 'in_clarification', 'all'];
+    private const ALLOWED_STATUSES = ['pending_approval', 'in_clarification', 'approved', 'rejected', 'all'];
     private const ALLOWED_SORTS    = ['oldest', 'newest', 'person_asc'];
 
     // -------------------------------------------------------------------------
@@ -84,13 +85,49 @@ final class CoordinationController
             throw new BadRequestException('Invalid sort value.');
         }
 
-        // tab=announcements placeholder
+        // tab=announcements – build read-model
         if ($tab === 'announcements') {
+            $pdo = Db::pdo();
+
+            $monthStart = $month . '-01';
+            $monthEnd   = date('Y-m-t', strtotime($monthStart));
+
+            $where  = ['a.date_local BETWEEN :month_start AND :month_end'];
+            $params = [':month_start' => $monthStart, ':month_end' => $monthEnd];
+
+            if ($status !== 'all') {
+                $where[]           = 'a.status = :status';
+                $params[':status'] = $status;
+            }
+
+            if ($userId !== null) {
+                $where[]            = 'a.user_id = :user_id';
+                $params[':user_id'] = $userId;
+            }
+
+            $orderBy = match ($sort) {
+                'newest'     => 'a.planned_start_at DESC',
+                'person_asc' => 'u.email ASC, a.planned_start_at ASC',
+                default      => 'a.planned_start_at ASC',  // oldest
+            };
+
+            $whereClause = implode(' AND ', $where);
+
+            $stmt = $pdo->prepare(
+                "SELECT a.*, u.email AS user_email
+                   FROM announcements a
+                   JOIN users u ON u.id = a.user_id
+                  WHERE {$whereClause}
+                  ORDER BY {$orderBy}"
+            );
+            $stmt->execute($params);
+            $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
             $body = renderView('coordination/queue', [
                 'title'   => 'Queue – Ankündigungen – Trackly',
                 'heading' => 'Queue – Ankündigungen',
                 'tab'     => 'announcements',
-                'entries' => [],
+                'entries' => $entries,
                 'month'   => $month,
                 'status'  => $status,
                 'sort'    => $sort,
@@ -387,6 +424,53 @@ final class CoordinationController
     }
 
     // -------------------------------------------------------------------------
+    // POST /coordination/announcements/:id/approve
+    // -------------------------------------------------------------------------
+
+    public function approveAnnouncement(): Response
+    {
+        Csrf::verifyOrFail();
+        Guard::requireRole(['coordination', 'admin']);
+
+        $id          = $this->routeId();
+        $actorUserId = (int) Auth::userId();
+
+        $this->fetchAnnouncementOrFail($id);
+
+        (new AnnouncementService(Db::pdo()))->approve($actorUserId, $id);
+
+        Flash::addSuccess('Ankündigung wurde freigegeben.');
+
+        return new Response(303, ['Location' => '/coordination/queue?tab=announcements'], '');
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /coordination/announcements/:id/reject
+    // -------------------------------------------------------------------------
+
+    public function rejectAnnouncement(): Response
+    {
+        Csrf::verifyOrFail();
+        Guard::requireRole(['coordination', 'admin']);
+
+        $id             = $this->routeId();
+        $actorUserId    = (int) Auth::userId();
+        $rejectionReason = trim($_POST['rejection_reason'] ?? '');
+
+        if (mb_strlen($rejectionReason) < 3) {
+            throw new BadRequestException('rejection_reason must be at least 3 characters.');
+        }
+
+        $this->fetchAnnouncementOrFail($id);
+
+        (new AnnouncementService(Db::pdo()))->reject($actorUserId, $id, $rejectionReason);
+
+        Flash::addSuccess('Ankündigung wurde abgelehnt.');
+
+        return new Response(303, ['Location' => '/coordination/queue?tab=announcements'], '');
+    }
+
+    // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
 
@@ -397,5 +481,23 @@ final class CoordinationController
             throw new \RuntimeException('Invalid route parameter id.');
         }
         return $id;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fetchAnnouncementOrFail(int $id): array
+    {
+        $pdo  = Db::pdo();
+        $stmt = $pdo->prepare('SELECT * FROM announcements WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row === false) {
+            // Treat not-found as forbidden so we don't leak existence to employees.
+            throw new \App\Http\ForbiddenException('Announcement not found.');
+        }
+
+        return $row;
     }
 }

@@ -66,10 +66,22 @@ final class TimeEntryController
         $stmt->execute([':uid' => $userId]);
         $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        $stmtAnn = $pdo->prepare(
+            'SELECT * FROM announcements WHERE user_id = :uid ORDER BY date_local DESC, planned_start_at DESC'
+        );
+        $stmtAnn->execute([':uid' => $userId]);
+        $announcements = $stmtAnn->fetchAll(PDO::FETCH_ASSOC);
+
         $body = renderView('time_entries/index', [
-            'title'         => 'Meine Zeiteinträge – Trackly',
-            'entries'       => $entries,
-            'statusLabels'  => self::STATUS_LABELS,
+            'title'                => 'Meine Zeiteinträge – Trackly',
+            'entries'              => $entries,
+            'statusLabels'         => self::STATUS_LABELS,
+            'announcements'        => $announcements,
+            'announcementStatuses' => [
+                'pending_approval' => 'Zur Prüfung',
+                'approved'         => 'Freigegeben',
+                'rejected'         => 'Abgelehnt',
+            ],
         ]);
 
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);

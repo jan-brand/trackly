@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controllers\AdminController;
+use App\Controllers\AnnouncementController;
 use App\Controllers\AuthController;
 use App\Controllers\ClarificationController;
 use App\Controllers\CoordinationController;
@@ -72,6 +73,30 @@ $router->post('/time-entries/:id', function (): Response {
 });
 
 // -------------------------------------------------------------------------
+// Announcements (employee self-service)
+// -------------------------------------------------------------------------
+
+$router->get('/announcements', function (): Response {
+    return (new AnnouncementController())->index();
+});
+
+$router->get('/announcements/new', function (): Response {
+    return (new AnnouncementController())->newForm();
+});
+
+$router->post('/announcements', function (): Response {
+    return (new AnnouncementController())->create();
+});
+
+$router->get('/announcements/:id', function (): Response {
+    return (new AnnouncementController())->show();
+});
+
+$router->post('/announcements/:id', function (): Response {
+    return (new AnnouncementController())->update();
+});
+
+// -------------------------------------------------------------------------
 // Timer (employee self-service)
 // -------------------------------------------------------------------------
 
@@ -93,6 +118,9 @@ $router->post('/timer/resume', function (): Response {
 
 $router->post('/timer/stop', function (): Response {
     return (new TimerController())->stop();
+});
+
+// -------------------------------------------------------------------------
 // Coordination queue
 // -------------------------------------------------------------------------
 
@@ -110,6 +138,14 @@ $router->post('/coordination/time-entries/:id/approve', function (): Response {
 
 $router->post('/coordination/time-entries/:id/request-clarification', function (): Response {
     return (new CoordinationController())->requestClarification();
+});
+
+$router->post('/coordination/announcements/:id/approve', function (): Response {
+    return (new CoordinationController())->approveAnnouncement();
+});
+
+$router->post('/coordination/announcements/:id/reject', function (): Response {
+    return (new CoordinationController())->rejectAnnouncement();
 });
 
 // -------------------------------------------------------------------------
