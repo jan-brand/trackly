@@ -453,6 +453,7 @@ final class CoordinationController
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($row === false) {
+            // Treat not-found as forbidden so we don't leak existence to employees.
             throw new \App\Http\ForbiddenException('Announcement not found.');
         }
 

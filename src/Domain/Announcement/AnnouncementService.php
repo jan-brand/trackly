@@ -19,6 +19,9 @@ use PDO;
  */
 final class AnnouncementService
 {
+    private const AUDIT_REASON_APPROVE = 'Freigegeben';
+    private const AUDIT_REASON_REJECT  = 'Abgelehnt';
+
     public function __construct(private readonly PDO $pdo) {}
 
     /**
@@ -151,7 +154,7 @@ final class AnnouncementService
 
             $newRow = $this->fetchRow($announcementId);
 
-            $this->insertAuditLog($announcementId, $actorUserId, 'approve', $oldRow, $newRow, $now, 'Freigegeben');
+            $this->insertAuditLog($announcementId, $actorUserId, 'approve', $oldRow, $newRow, $now, self::AUDIT_REASON_APPROVE);
 
             $this->pdo->commit();
         } catch (\Throwable $e) {
@@ -184,7 +187,7 @@ final class AnnouncementService
 
             $newRow = $this->fetchRow($announcementId);
 
-            $this->insertAuditLog($announcementId, $actorUserId, 'reject', $oldRow, $newRow, $now, 'Abgelehnt');
+            $this->insertAuditLog($announcementId, $actorUserId, 'reject', $oldRow, $newRow, $now, self::AUDIT_REASON_REJECT);
 
             $this->pdo->commit();
         } catch (\Throwable $e) {

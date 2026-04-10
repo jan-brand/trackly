@@ -188,6 +188,7 @@ final class AnnouncementController
         $announcement = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($announcement === false) {
+            // Treat not-found as forbidden so we don't leak existence to employees.
             throw new \App\Http\ForbiddenException('Announcement not found.');
         }
 
