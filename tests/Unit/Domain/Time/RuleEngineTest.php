@@ -57,12 +57,18 @@ class RuleEngineTest extends TestCase
         int   $breakRequired6h        = 30,
         int   $breakRequired9h        = 45,
         array $otherEntries           = [],
+        int   $maxDailyRegularMinutes = 480,
+        int   $maxDeviationMinutes    = 30,
+        array $approvedAnnouncements  = [],
     ): RuleContext {
         return new RuleContext(
             maxShiftMinutes:        $maxShiftMinutes,
             breakRequired6hMinutes: $breakRequired6h,
             breakRequired9hMinutes: $breakRequired9h,
             otherEntries:           $otherEntries,
+            maxDailyRegularMinutes: $maxDailyRegularMinutes,
+            maxDeviationMinutes:    $maxDeviationMinutes,
+            approvedAnnouncements:  $approvedAnnouncements,
         );
     }
 
@@ -323,5 +329,189 @@ class RuleEngineTest extends TestCase
         $flags = $this->engine->evaluate($entry, $ctx);
 
         $this->assertSame([], $flags);
+    }
+
+    // =========================================================================
+    // AN5.5 – Announcement missing / deviation
+    // =========================================================================
+
+    /**
+     * AN5.5 must-have: no announcement on a weekend ⇒ announcement_missing flag.
+     *
+     * 2026-04-11 is a Saturday.
+     */
+    public function testAnnouncementMissingFlagOnWeekend(): void
+    {
+        $entry = $this->makeEntry(
+            startAt:      '2026-04-11 09:00:00',  // Saturday
+            endAt:        '2026-04-11 17:00:00',
+            breakMinutes: 30,
+            netMinutes:   450,
+        );
+
+        $ctx = $this->makeContext(
+            approvedAnnouncements: [],  // no announcement
+        );
+
+        $flags = $this->engine->evaluate($entry, $ctx);
+        $keys  = array_map(fn(Flag $f) => $f->flagKey, $flags);
+
+        $this->assertContains('announcement_missing', $keys);
+    }
+
+    /**
+     * AN5.5: no announcement_missing on a normal weekday within regular hours.
+     *
+     * 2026-04-08 is a Wednesday. Shift = 450 min < 480 default. No announcement required.
+     */
+    public function testNoAnnouncementMissingFlagOnWeekdayWithinRegularHours(): void
+    {
+        $entry = $this->makeEntry(
+            startAt:      '2026-04-08 09:00:00',  // Wednesday
+            endAt:        '2026-04-08 17:00:00',
+            breakMinutes: 30,
+            netMinutes:   450,
+        );
+
+        $ctx = $this->makeContext(
+            maxDailyRegularMinutes: 480,
+            approvedAnnouncements:  [],
+        );
+
+        $flags = $this->engine->evaluate($entry, $ctx);
+        $keys  = array_map(fn(Flag $f) => $f->flagKey, $flags);
+
+        $this->assertNotContains('announcement_missing', $keys);
+    }
+
+    /**
+     * AN5.5: shift exceeds maxDailyRegularMinutes on a weekday ⇒ announcement_missing.
+     *
+     * 2026-04-07 is a Tuesday. Shift = 540 min > 480 default.
+     */
+    public function testAnnouncementMissingWhenShiftExceedsDailyRegularOnWeekday(): void
+    {
+        $entry = $this->makeEntry(
+            startAt:      '2026-04-07 09:00:00',  // Tuesday
+            endAt:        '2026-04-07 18:00:00',
+            breakMinutes: 0,
+            netMinutes:   540,
+        );
+
+        $ctx = $this->makeContext(
+            maxDailyRegularMinutes: 480,
+            approvedAnnouncements:  [],  // no announcement
+        );
+
+        $flags = $this->engine->evaluate($entry, $ctx);
+        $keys  = array_map(fn(Flag $f) => $f->flagKey, $flags);
+
+        $this->assertContains('announcement_missing', $keys);
+    }
+
+    /**
+     * AN5.5 must-have: announcement present but deviation over threshold ⇒ announcement_deviation.
+     *
+     * Entry starts 09:00 Saturday; announcement planned_start 07:00 (120 min early).
+     * Default maxDeviationMinutes = 30, so 120 > 30 ⇒ deviation flag.
+     */
+    public function testAnnouncementDeviationFlagWhenDeviationExceedsThreshold(): void
+    {
+        $entry = $this->makeEntry(
+            startAt:      '2026-04-11 09:00:00',  // Saturday
+            endAt:        '2026-04-11 17:00:00',
+            breakMinutes: 30,
+            netMinutes:   450,
+        );
+
+        $ctx = $this->makeContext(
+            maxDeviationMinutes:   30,
+            approvedAnnouncements: [
+                [
+                    'id'               => 1,
+                    'planned_start_at' => '2026-04-11 07:00:00',  // 120 min earlier
+                    'planned_end_at'   => '2026-04-11 15:00:00',
+                ],
+            ],
+        );
+
+        $flags = $this->engine->evaluate($entry, $ctx);
+        $keys  = array_map(fn(Flag $f) => $f->flagKey, $flags);
+
+        $this->assertContains('announcement_deviation', $keys);
+        $this->assertNotContains('announcement_missing', $keys);
+    }
+
+    /**
+     * AN5.5: announcement present and deviation within threshold ⇒ no deviation flag.
+     *
+     * Entry starts 09:00 Saturday; announcement planned_start 08:45 (15 min earlier).
+     * Default maxDeviationMinutes = 30, so 15 <= 30 ⇒ no flag.
+     */
+    public function testNoAnnouncementDeviationFlagWhenWithinThreshold(): void
+    {
+        $entry = $this->makeEntry(
+            startAt:      '2026-04-11 09:00:00',  // Saturday
+            endAt:        '2026-04-11 17:00:00',
+            breakMinutes: 30,
+            netMinutes:   450,
+        );
+
+        $ctx = $this->makeContext(
+            maxDeviationMinutes:   30,
+            approvedAnnouncements: [
+                [
+                    'id'               => 1,
+                    'planned_start_at' => '2026-04-11 08:45:00',  // 15 min earlier
+                    'planned_end_at'   => '2026-04-11 16:45:00',
+                ],
+            ],
+        );
+
+        $flags = $this->engine->evaluate($entry, $ctx);
+        $keys  = array_map(fn(Flag $f) => $f->flagKey, $flags);
+
+        $this->assertNotContains('announcement_deviation', $keys);
+        $this->assertNotContains('announcement_missing', $keys);
+    }
+
+    /**
+     * AN5.5: selects the closest announcement (smallest abs deviation) when multiple exist.
+     *
+     * Entry starts 09:00 Saturday.
+     * Ann A: planned_start 06:00 (180 min diff)
+     * Ann B: planned_start 08:50 (10 min diff) ← closest
+     * maxDeviationMinutes = 30 → only 10 min diff ⇒ no flag.
+     */
+    public function testBestCandidateSelectedFromMultipleAnnouncements(): void
+    {
+        $entry = $this->makeEntry(
+            startAt:      '2026-04-11 09:00:00',  // Saturday
+            endAt:        '2026-04-11 17:00:00',
+            breakMinutes: 30,
+            netMinutes:   450,
+        );
+
+        $ctx = $this->makeContext(
+            maxDeviationMinutes:   30,
+            approvedAnnouncements: [
+                [
+                    'id'               => 1,
+                    'planned_start_at' => '2026-04-11 06:00:00',  // 180 min diff
+                    'planned_end_at'   => '2026-04-11 14:00:00',
+                ],
+                [
+                    'id'               => 2,
+                    'planned_start_at' => '2026-04-11 08:50:00',  // 10 min diff
+                    'planned_end_at'   => '2026-04-11 16:50:00',
+                ],
+            ],
+        );
+
+        $flags = $this->engine->evaluate($entry, $ctx);
+        $keys  = array_map(fn(Flag $f) => $f->flagKey, $flags);
+
+        $this->assertNotContains('announcement_deviation', $keys);
+        $this->assertNotContains('announcement_missing', $keys);
     }
 }
