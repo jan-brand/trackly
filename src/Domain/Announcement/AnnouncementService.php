@@ -20,7 +20,6 @@ use PDO;
 final class AnnouncementService
 {
     private const AUDIT_REASON_APPROVE = 'Freigegeben';
-    private const AUDIT_REASON_REJECT  = 'Abgelehnt';
 
     public function __construct(private readonly PDO $pdo) {}
 
@@ -170,10 +169,11 @@ final class AnnouncementService
      *
      * Sets status to 'rejected' and writes one audit row (action=reject).
      *
-     * @param int $actorUserId  ID of the coordination/admin user performing the action
-     * @param int $announcementId
+     * @param int    $actorUserId    ID of the coordination/admin user performing the action
+     * @param int    $announcementId
+     * @param string $reason         Mandatory rejection reason (stored in audit log)
      */
-    public function reject(int $actorUserId, int $announcementId): void
+    public function reject(int $actorUserId, int $announcementId, string $reason): void
     {
         $this->pdo->beginTransaction();
 
@@ -187,7 +187,7 @@ final class AnnouncementService
 
             $newRow = $this->fetchRow($announcementId);
 
-            $this->insertAuditLog($announcementId, $actorUserId, 'reject', $oldRow, $newRow, $now, self::AUDIT_REASON_REJECT);
+            $this->insertAuditLog($announcementId, $actorUserId, 'reject', $oldRow, $newRow, $now, $reason);
 
             $this->pdo->commit();
         } catch (\Throwable $e) {

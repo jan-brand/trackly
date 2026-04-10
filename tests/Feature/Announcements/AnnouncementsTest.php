@@ -269,7 +269,7 @@ class AnnouncementsTest extends TestCase
         $result = simulateRequest(
             'POST',
             '/coordination/announcements/' . $annId . '/reject',
-            ['csrf_token' => $token],
+            ['csrf_token' => $token, 'rejection_reason' => 'Zu kurzfristig angemeldet'],
             [],
             [
                 'user_id'        => $coordUserId,
@@ -284,14 +284,14 @@ class AnnouncementsTest extends TestCase
         $stmt->execute([':id' => $annId]);
         $this->assertSame('rejected', $stmt->fetchColumn());
 
-        // Verify one audit row with action=reject
+        // Verify one audit row with action=reject and the provided reason
         $stmt = $this->pdo->prepare(
             'SELECT action, reason FROM announcement_audit_log WHERE announcement_id = :id ORDER BY id DESC LIMIT 1'
         );
         $stmt->execute([':id' => $annId]);
         $audit = $stmt->fetch(\PDO::FETCH_ASSOC);
         $this->assertSame('reject', $audit['action']);
-        $this->assertSame('Abgelehnt', $audit['reason']);
+        $this->assertSame('Zu kurzfristig angemeldet', $audit['reason']);
     }
 
     // =========================================================================
@@ -357,6 +357,37 @@ class AnnouncementsTest extends TestCase
         );
 
         $this->assertSame(403, $result['status']);
+    }
+
+    // =========================================================================
+    // AN5.4 additional: reject without reason ⇒ 400
+    // =========================================================================
+
+    public function testRejectWithoutReasonReturns400(): void
+    {
+        $userId      = $this->createUser('emp9@example.com');
+        $coordUserId = $this->createUser('coord3@example.com');
+        $token       = bin2hex(random_bytes(16));
+        $annId       = $this->insertAnnouncement($userId, 'pending_approval');
+
+        $result = simulateRequest(
+            'POST',
+            '/coordination/announcements/' . $annId . '/reject',
+            ['csrf_token' => $token],   // no rejection_reason
+            [],
+            [
+                'user_id'        => $coordUserId,
+                '__user_roles'   => ['coordination'],
+                '__csrf_token'   => $token,
+            ],
+        );
+
+        $this->assertSame(400, $result['status']);
+
+        // Status must remain unchanged
+        $stmt = $this->pdo->prepare('SELECT status FROM announcements WHERE id = :id');
+        $stmt->execute([':id' => $annId]);
+        $this->assertSame('pending_approval', $stmt->fetchColumn());
     }
 
     // =========================================================================

@@ -453,12 +453,17 @@ final class CoordinationController
         Csrf::verifyOrFail();
         Guard::requireRole(['coordination', 'admin']);
 
-        $id          = $this->routeId();
-        $actorUserId = (int) Auth::userId();
+        $id             = $this->routeId();
+        $actorUserId    = (int) Auth::userId();
+        $rejectionReason = trim($_POST['rejection_reason'] ?? '');
+
+        if (mb_strlen($rejectionReason) < 3) {
+            throw new BadRequestException('rejection_reason must be at least 3 characters.');
+        }
 
         $this->fetchAnnouncementOrFail($id);
 
-        (new AnnouncementService(Db::pdo()))->reject($actorUserId, $id);
+        (new AnnouncementService(Db::pdo()))->reject($actorUserId, $id, $rejectionReason);
 
         Flash::addSuccess('Ankündigung wurde abgelehnt.');
 

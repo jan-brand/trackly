@@ -181,6 +181,37 @@ class TimeEntriesE2ETest extends TestCase
     }
 
     // =========================================================================
+    // Announcements appear on /time-entries when present
+    // =========================================================================
+
+    public function testAnnouncementsVisibleOnTimeEntriesIndex(): void
+    {
+        $userId = $this->createUser('emp_ann@example.com');
+
+        $this->pdo->prepare(
+            "INSERT INTO announcements
+                 (user_id, date_local, planned_start_at, planned_end_at,
+                  break_minutes, net_minutes, reason, status, created_at, updated_at)
+             VALUES
+                 (:uid, '2026-04-15', '2026-04-15 09:00:00', '2026-04-15 17:00:00',
+                  30, 450, 'Geplante Schicht', 'pending_approval',
+                  '2026-04-10 08:00:00', '2026-04-10 08:00:00')"
+        )->execute([':uid' => $userId]);
+
+        $result = simulateRequest(
+            'GET',
+            '/time-entries',
+            [],
+            [],
+            ['user_id' => $userId, '__user_roles' => ['employee']],
+        );
+
+        $this->assertSame(200, $result['status']);
+        $this->assertStringContainsString('Ankündigungen', $result['body']);
+        $this->assertStringContainsString('2026-04-15', $result['body']);
+    }
+
+    // =========================================================================
     // Private helpers
     // =========================================================================
 
@@ -292,6 +323,22 @@ class TimeEntriesE2ETest extends TestCase
                 old_json       TEXT    NULL,
                 new_json       TEXT    NOT NULL,
                 created_at     TEXT    NOT NULL
+            )
+        ");
+
+        $pdo->exec("
+            CREATE TABLE announcements (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id          INTEGER NOT NULL,
+                date_local       TEXT    NOT NULL,
+                planned_start_at TEXT    NOT NULL,
+                planned_end_at   TEXT    NOT NULL,
+                break_minutes    INTEGER NOT NULL DEFAULT 0,
+                net_minutes      INTEGER NOT NULL,
+                reason           TEXT    NOT NULL,
+                status           TEXT    NOT NULL DEFAULT 'pending_approval',
+                created_at       TEXT    NOT NULL,
+                updated_at       TEXT    NOT NULL
             )
         ");
 

@@ -126,6 +126,9 @@ $formatDateTime = static function (string $dt): string {
                         </form>
                         <form method="post" action="/coordination/announcements/<?= $esc($ann['id']) ?>/reject" class="u-inline u-ml-2">
                             <?= \App\Security\Csrf::inputHtml() ?>
+                            <input class="c-input c-input--sm u-ml-2" type="text" name="rejection_reason"
+                                   placeholder="Begründung (Pflicht)" required minlength="3"
+                                   aria-label="Begründung der Ablehnung">
                             <button class="c-btn c-btn--sm c-btn--secondary" type="submit">Ablehnen</button>
                         </form>
                         <?php endif; ?>
