@@ -35,6 +35,7 @@ $isEmployee  = $loggedIn && Auth::hasRole('employee');
             <?php if ($isAdminOrCo): ?>
                 <li><a class="c-nav__link" href="/coordination/queue">Warteschlange</a></li>
                 <li><a class="c-nav__link" href="/admin/settings">Einstellungen</a></li>
+                <li><a class="c-nav__link" href="/export">Export</a></li>
             <?php endif; ?>
             <?php if ($isTreasurer): ?>
                 <li><a class="c-nav__link" href="/export">Export</a></li>
