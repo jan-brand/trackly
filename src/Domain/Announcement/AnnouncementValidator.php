@@ -118,7 +118,25 @@ final class AnnouncementValidator
             : $endSameDay;
 
         // ------------------------------------------------------------------
-        // 3. Net minutes
+        // 3. Min-notice check (announcement.min_notice_hours)
+        // ------------------------------------------------------------------
+        $minNoticeHours = (int) ($this->settings['announcement.min_notice_hours'] ?? 72);
+
+        if ($minNoticeHours > 0) {
+            $now      = new \DateTimeImmutable('now', $tz);
+            $earliest = $now->modify("+{$minNoticeHours} hours");
+
+            if ($startAt < $earliest) {
+                throw new AnnouncementValidationException([
+                    '_global' => [
+                        "planned_start_at muss mindestens {$minNoticeHours} Stunden in der Zukunft liegen.",
+                    ],
+                ]);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // 4. Net minutes
         // ------------------------------------------------------------------
         $shiftMinutes = (int) round(($endAt->getTimestamp() - $startAt->getTimestamp()) / 60);
         $netMinutes   = max(0, $shiftMinutes - (int) $breakMinutes);

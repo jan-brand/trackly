@@ -112,12 +112,15 @@ class AnnouncementsTest extends TestCase
         $userId = $this->createUser('emp2@example.com');
         $token  = bin2hex(random_bytes(16));
 
+        // Use a date far enough in the future to pass the 72h notice check.
+        $futureDate = (new \DateTimeImmutable('+5 days'))->format('Y-m-d');
+
         $result = simulateRequest(
             'POST',
             '/announcements',
             [
                 'csrf_token'         => $token,
-                'date'               => '2026-04-10',
+                'date'               => $futureDate,
                 'planned_start_time' => '09:00',
                 'planned_end_time'   => '17:00',
                 'break_minutes'      => '30',
@@ -150,12 +153,15 @@ class AnnouncementsTest extends TestCase
 
         $annId = $this->insertAnnouncement($userId, 'approved');
 
+        // Use a date far enough in the future to pass the 72h notice check.
+        $futureDate = (new \DateTimeImmutable('+5 days'))->format('Y-m-d');
+
         $result = simulateRequest(
             'POST',
             '/announcements/' . $annId,
             [
                 'csrf_token'         => $token,
-                'date'               => '2026-04-11',
+                'date'               => $futureDate,
                 'planned_start_time' => '08:00',
                 'planned_end_time'   => '16:00',
                 'break_minutes'      => '30',
@@ -205,6 +211,152 @@ class AnnouncementsTest extends TestCase
         );
 
         $this->assertSame(422, $result['status']);
+    }
+
+    // =========================================================================
+    // AN5.3 must-have: planned_start_at within 24h ⇒ 422 (72h rule)
+    // =========================================================================
+
+    public function testPlanningStartWithin24hReturns422(): void
+    {
+        $userId = $this->createUser('emp5@example.com');
+        $token  = bin2hex(random_bytes(16));
+
+        // Insert setting: min_notice_hours = 72 (default) – no row needed as default is used.
+        // planned_start_time = now + 1 hour (well within 72h block window)
+        $soon = (new \DateTimeImmutable('+1 hour'))->format('Y-m-d');
+        $soonTime = (new \DateTimeImmutable('+1 hour'))->format('H:i');
+
+        $result = simulateRequest(
+            'POST',
+            '/announcements',
+            [
+                'csrf_token'         => $token,
+                'date'               => $soon,
+                'planned_start_time' => $soonTime,
+                'planned_end_time'   => (new \DateTimeImmutable('+3 hours'))->format('H:i'),
+                'break_minutes'      => '0',
+                'reason'             => 'Urgent shift',
+            ],
+            [],
+            [
+                'user_id'        => $userId,
+                '__user_roles'   => ['employee'],
+                '__csrf_token'   => $token,
+            ],
+        );
+
+        $this->assertSame(422, $result['status']);
+
+        // No DB row should have been created
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM announcements WHERE user_id = :uid');
+        $stmt->execute([':uid' => $userId]);
+        $this->assertSame(0, (int) $stmt->fetchColumn());
+    }
+
+    // =========================================================================
+    // AN5.4 must-have: reject announcement ⇒ status=rejected
+    // =========================================================================
+
+    public function testCoordinationRejectAnnouncementSetsStatusRejected(): void
+    {
+        $userId      = $this->createUser('emp6@example.com');
+        $coordUserId = $this->createUser('coord@example.com');
+        $token       = bin2hex(random_bytes(16));
+
+        $annId = $this->insertAnnouncement($userId, 'pending_approval');
+
+        $result = simulateRequest(
+            'POST',
+            '/coordination/announcements/' . $annId . '/reject',
+            ['csrf_token' => $token],
+            [],
+            [
+                'user_id'        => $coordUserId,
+                '__user_roles'   => ['coordination'],
+                '__csrf_token'   => $token,
+            ],
+        );
+
+        $this->assertSame(303, $result['status']);
+
+        $stmt = $this->pdo->prepare('SELECT status FROM announcements WHERE id = :id');
+        $stmt->execute([':id' => $annId]);
+        $this->assertSame('rejected', $stmt->fetchColumn());
+
+        // Verify one audit row with action=reject
+        $stmt = $this->pdo->prepare(
+            'SELECT action, reason FROM announcement_audit_log WHERE announcement_id = :id ORDER BY id DESC LIMIT 1'
+        );
+        $stmt->execute([':id' => $annId]);
+        $audit = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $this->assertSame('reject', $audit['action']);
+        $this->assertSame('Abgelehnt', $audit['reason']);
+    }
+
+    // =========================================================================
+    // AN5.4 additional: approve announcement ⇒ status=approved
+    // =========================================================================
+
+    public function testCoordinationApproveAnnouncementSetsStatusApproved(): void
+    {
+        $userId      = $this->createUser('emp7@example.com');
+        $coordUserId = $this->createUser('coord2@example.com');
+        $token       = bin2hex(random_bytes(16));
+
+        $annId = $this->insertAnnouncement($userId, 'pending_approval');
+
+        $result = simulateRequest(
+            'POST',
+            '/coordination/announcements/' . $annId . '/approve',
+            ['csrf_token' => $token],
+            [],
+            [
+                'user_id'        => $coordUserId,
+                '__user_roles'   => ['coordination'],
+                '__csrf_token'   => $token,
+            ],
+        );
+
+        $this->assertSame(303, $result['status']);
+
+        $stmt = $this->pdo->prepare('SELECT status FROM announcements WHERE id = :id');
+        $stmt->execute([':id' => $annId]);
+        $this->assertSame('approved', $stmt->fetchColumn());
+
+        // Verify audit row
+        $stmt = $this->pdo->prepare(
+            'SELECT action, reason FROM announcement_audit_log WHERE announcement_id = :id ORDER BY id DESC LIMIT 1'
+        );
+        $stmt->execute([':id' => $annId]);
+        $audit = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $this->assertSame('approve', $audit['action']);
+        $this->assertSame('Freigegeben', $audit['reason']);
+    }
+
+    // =========================================================================
+    // AN5.4 additional: employee cannot approve ⇒ 403
+    // =========================================================================
+
+    public function testEmployeeCannotApproveAnnouncementReturns403(): void
+    {
+        $userId = $this->createUser('emp8@example.com');
+        $token  = bin2hex(random_bytes(16));
+        $annId  = $this->insertAnnouncement($userId, 'pending_approval');
+
+        $result = simulateRequest(
+            'POST',
+            '/coordination/announcements/' . $annId . '/approve',
+            ['csrf_token' => $token],
+            [],
+            [
+                'user_id'        => $userId,
+                '__user_roles'   => ['employee'],
+                '__csrf_token'   => $token,
+            ],
+        );
+
+        $this->assertSame(403, $result['status']);
     }
 
     // =========================================================================
@@ -299,6 +451,7 @@ class AnnouncementsTest extends TestCase
                 announcement_id  INTEGER NOT NULL,
                 actor_user_id    INTEGER NOT NULL,
                 action           TEXT    NOT NULL,
+                reason           TEXT    NULL,
                 old_json         TEXT    NULL,
                 new_json         TEXT    NOT NULL,
                 created_at       TEXT    NOT NULL

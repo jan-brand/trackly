@@ -129,6 +129,72 @@ final class AnnouncementService
         }
     }
 
+    /**
+     * Approve an announcement.
+     *
+     * Sets status to 'approved' and writes one audit row (action=approve).
+     *
+     * @param int $actorUserId  ID of the coordination/admin user performing the action
+     * @param int $announcementId
+     */
+    public function approve(int $actorUserId, int $announcementId): void
+    {
+        $this->pdo->beginTransaction();
+
+        try {
+            $now    = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+            $oldRow = $this->fetchRow($announcementId);
+
+            $this->pdo->prepare(
+                'UPDATE announcements SET status = :status, updated_at = :updated_at WHERE id = :id'
+            )->execute([':status' => 'approved', ':updated_at' => $now, ':id' => $announcementId]);
+
+            $newRow = $this->fetchRow($announcementId);
+
+            $this->insertAuditLog($announcementId, $actorUserId, 'approve', $oldRow, $newRow, $now, 'Freigegeben');
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Reject an announcement.
+     *
+     * Sets status to 'rejected' and writes one audit row (action=reject).
+     *
+     * @param int $actorUserId  ID of the coordination/admin user performing the action
+     * @param int $announcementId
+     */
+    public function reject(int $actorUserId, int $announcementId): void
+    {
+        $this->pdo->beginTransaction();
+
+        try {
+            $now    = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+            $oldRow = $this->fetchRow($announcementId);
+
+            $this->pdo->prepare(
+                'UPDATE announcements SET status = :status, updated_at = :updated_at WHERE id = :id'
+            )->execute([':status' => 'rejected', ':updated_at' => $now, ':id' => $announcementId]);
+
+            $newRow = $this->fetchRow($announcementId);
+
+            $this->insertAuditLog($announcementId, $actorUserId, 'reject', $oldRow, $newRow, $now, 'Abgelehnt');
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -160,6 +226,7 @@ final class AnnouncementService
         ?array $oldRow,
         array $newRow,
         string $now,
+        ?string $reason = null,
     ): void {
         $fields = ['user_id', 'date_local', 'planned_start_at', 'planned_end_at',
                    'break_minutes', 'net_minutes', 'reason', 'status'];
@@ -170,13 +237,14 @@ final class AnnouncementService
 
         $this->pdo->prepare(
             'INSERT INTO announcement_audit_log
-                 (announcement_id, actor_user_id, action, old_json, new_json, created_at)
+                 (announcement_id, actor_user_id, action, reason, old_json, new_json, created_at)
              VALUES
-                 (:announcement_id, :actor_user_id, :action, :old_json, :new_json, :created_at)'
+                 (:announcement_id, :actor_user_id, :action, :reason, :old_json, :new_json, :created_at)'
         )->execute([
             ':announcement_id' => $announcementId,
             ':actor_user_id'   => $actorUserId,
             ':action'          => $action,
+            ':reason'          => $reason,
             ':old_json'        => $oldRow !== null ? json_encode($snapshot($oldRow), JSON_THROW_ON_ERROR) : null,
             ':new_json'        => json_encode($snapshot($newRow), JSON_THROW_ON_ERROR),
             ':created_at'      => $now,

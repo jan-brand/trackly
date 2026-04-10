@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Db\Db;
+use App\Domain\Announcement\AnnouncementService;
 use App\Http\BadRequestException;
 use App\Http\Response;
 use App\Security\Auth;
@@ -387,6 +388,48 @@ final class CoordinationController
     }
 
     // -------------------------------------------------------------------------
+    // POST /coordination/announcements/:id/approve
+    // -------------------------------------------------------------------------
+
+    public function approveAnnouncement(): Response
+    {
+        Csrf::verifyOrFail();
+        Guard::requireRole(['coordination', 'admin']);
+
+        $id          = $this->routeId();
+        $actorUserId = (int) Auth::userId();
+
+        $this->fetchAnnouncementOrFail($id);
+
+        (new AnnouncementService(Db::pdo()))->approve($actorUserId, $id);
+
+        Flash::addSuccess('Ankündigung wurde freigegeben.');
+
+        return new Response(303, ['Location' => '/coordination/queue?tab=announcements'], '');
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /coordination/announcements/:id/reject
+    // -------------------------------------------------------------------------
+
+    public function rejectAnnouncement(): Response
+    {
+        Csrf::verifyOrFail();
+        Guard::requireRole(['coordination', 'admin']);
+
+        $id          = $this->routeId();
+        $actorUserId = (int) Auth::userId();
+
+        $this->fetchAnnouncementOrFail($id);
+
+        (new AnnouncementService(Db::pdo()))->reject($actorUserId, $id);
+
+        Flash::addSuccess('Ankündigung wurde abgelehnt.');
+
+        return new Response(303, ['Location' => '/coordination/queue?tab=announcements'], '');
+    }
+
+    // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
 
@@ -397,5 +440,22 @@ final class CoordinationController
             throw new \RuntimeException('Invalid route parameter id.');
         }
         return $id;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fetchAnnouncementOrFail(int $id): array
+    {
+        $pdo  = Db::pdo();
+        $stmt = $pdo->prepare('SELECT * FROM announcements WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row === false) {
+            throw new \App\Http\ForbiddenException('Announcement not found.');
+        }
+
+        return $row;
     }
 }

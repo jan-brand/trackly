@@ -140,6 +140,14 @@ $router->post('/coordination/time-entries/:id/request-clarification', function (
     return (new CoordinationController())->requestClarification();
 });
 
+$router->post('/coordination/announcements/:id/approve', function (): Response {
+    return (new CoordinationController())->approveAnnouncement();
+});
+
+$router->post('/coordination/announcements/:id/reject', function (): Response {
+    return (new CoordinationController())->rejectAnnouncement();
+});
+
 // -------------------------------------------------------------------------
 // Clarifications
 // -------------------------------------------------------------------------

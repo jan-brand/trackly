@@ -152,6 +152,17 @@ final class SettingsRegistry
                 min:     1,
                 max:     1440,
             ),
+            // ----------------------------------------------------------------
+            // Announcement rules
+            // ----------------------------------------------------------------
+            new SettingDefinition(
+                key:     'announcement.min_notice_hours',
+                type:    'int',
+                default: 72,
+                label:   'Mindestvorlaufzeit für Ankündigungen (Stunden)',
+                min:     0,
+                max:     8760,
+            ),
         );
     }
 
