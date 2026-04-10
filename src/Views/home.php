@@ -12,7 +12,8 @@ $title = 'Trackly – Zeiterfassung für Vereine';
             
             <div class="l-cluster">
                 <a class="c-btn c-btn--primary" href="/login">Jetzt anmelden</a>
-                <a class="c-btn c-btn--secondary" href="#features">Mehr erfahren</a>
+                <a class="c-btn c-btn--secondary" href="/time-entries">Meine Zeiteinträge</a>
+                <a class="c-btn c-btn--secondary" href="/export">Exportieren</a>
             </div>
         </div>
     </div>
