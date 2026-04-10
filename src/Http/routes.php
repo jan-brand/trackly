@@ -7,6 +7,7 @@ use App\Controllers\AnnouncementController;
 use App\Controllers\AuthController;
 use App\Controllers\ClarificationController;
 use App\Controllers\CoordinationController;
+use App\Controllers\ExportController;
 use App\Controllers\HomeController;
 use App\Controllers\TimeEntryController;
 use App\Controllers\TimerController;
@@ -158,6 +159,22 @@ $router->get('/clarifications', function (): Response {
 
 $router->post('/clarifications/:id/answer', function (): Response {
     return (new ClarificationController())->answer();
+});
+
+// -------------------------------------------------------------------------
+// Export
+// -------------------------------------------------------------------------
+
+$router->get('/export', function (): Response {
+    return (new ExportController())->index();
+});
+
+$router->post('/export/csv', function (): Response {
+    return (new ExportController())->csv();
+});
+
+$router->post('/export/pdf', function (): Response {
+    return (new ExportController())->pdf();
 });
 
 // -------------------------------------------------------------------------
