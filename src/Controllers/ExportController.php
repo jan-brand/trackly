@@ -132,10 +132,13 @@ final class ExportController
             'rows'  => $rows,
         ]);
 
-        $tmpHtml = tempnam(sys_get_temp_dir(), 'trackly_pdf_html_');
-        $tmpPdf  = tempnam(sys_get_temp_dir(), 'trackly_pdf_out_');
+        // tempnam() gives us an atomic unique base path; we append proper extensions
+        // so wkhtmltopdf can identify the file types (required on Windows).
+        $tmpBase = tempnam(sys_get_temp_dir(), 'trackly_pdf_');
+        $tmpHtml = $tmpBase !== false ? $tmpBase . '.html' : false;
+        $tmpPdf  = $tmpBase !== false ? $tmpBase . '.pdf'  : false;
 
-        if ($tmpHtml === false || $tmpPdf === false) {
+        if ($tmpBase === false || $tmpHtml === false || $tmpPdf === false) {
             error_log('[ExportController] Failed to create temp files for PDF export.');
             Flash::addError('PDF-Export intern fehlgeschlagen.');
             return new Response(500, ['Content-Type' => 'text/html; charset=utf-8'], renderView('errors/500'));
@@ -157,6 +160,9 @@ final class ExportController
             }
 
             fclose($pipes[0]);
+            // Drain stdout first to prevent a potential pipe-buffer deadlock,
+            // then read stderr for error reporting.
+            stream_get_contents($pipes[1]);
             $stderr = stream_get_contents($pipes[2]);
             fclose($pipes[1]);
             fclose($pipes[2]);
@@ -183,10 +189,13 @@ final class ExportController
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             ], $pdfContent);
         } finally {
-            if (file_exists($tmpHtml)) {
+            if ($tmpBase !== false && file_exists($tmpBase)) {
+                @unlink($tmpBase);
+            }
+            if ($tmpHtml !== false && file_exists($tmpHtml)) {
                 @unlink($tmpHtml);
             }
-            if (file_exists($tmpPdf)) {
+            if ($tmpPdf !== false && file_exists($tmpPdf)) {
                 @unlink($tmpPdf);
             }
         }
