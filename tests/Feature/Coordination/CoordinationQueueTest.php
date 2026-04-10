@@ -189,10 +189,10 @@ class CoordinationQueueTest extends TestCase
     }
 
     // =========================================================================
-    // Q3.4a Must-have: tab=announcements → 200 + "Noch nicht implementiert."
+    // Q3.4a: tab=announcements → 200 + queue heading (no placeholder)
     // =========================================================================
 
-    public function testAnnouncementsTabReturns200WithPlaceholder(): void
+    public function testAnnouncementsTabReturns200WithQueueHeading(): void
     {
         $coordId = $this->createUser('coord7@example.com');
 
@@ -204,8 +204,31 @@ class CoordinationQueueTest extends TestCase
         );
 
         $this->assertSame(200, $result['status']);
-        $this->assertStringContainsString('Noch nicht implementiert.', $result['body']);
         $this->assertStringContainsString('Queue – Ankündigungen', $result['body']);
+        $this->assertStringNotContainsString('Noch nicht implementiert.', $result['body']);
+    }
+
+    // =========================================================================
+    // tab=announcements with data → announcement row visible
+    // =========================================================================
+
+    public function testAnnouncementsTabShowsAnnouncementRow(): void
+    {
+        $empId   = $this->createUser('emp_ann@example.com');
+        $coordId = $this->createUser('coord9@example.com');
+
+        $this->insertAnnouncement($empId, '2026-04-15', 'pending_approval');
+
+        $result = dispatch(
+            'GET',
+            '/coordination/queue?tab=announcements&month=2026-04',
+            [],
+            ['user_id' => $coordId, '__user_roles' => ['coordination']],
+        );
+
+        $this->assertSame(200, $result['status']);
+        $this->assertStringContainsString('emp_ann@example.com', $result['body']);
+        $this->assertStringContainsString('2026-04-15', $result['body']);
     }
 
     // =========================================================================
@@ -238,6 +261,20 @@ class CoordinationQueueTest extends TestCase
             ':email' => $email,
             ':hash'  => password_hash('secret', PASSWORD_BCRYPT),
         ]);
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    private function insertAnnouncement(int $userId, string $dateLocal, string $status): int
+    {
+        $this->pdo->prepare(
+            "INSERT INTO announcements
+                 (user_id, date_local, planned_start_at, planned_end_at,
+                  break_minutes, net_minutes, reason, status, created_at, updated_at)
+             VALUES
+                 (:user_id, :date_local,
+                  :date_local || ' 09:00:00', :date_local || ' 17:00:00',
+                  30, 450, 'Planned shift', :status, '2026-01-01 00:00:00', '2026-01-01 00:00:00')"
+        )->execute([':user_id' => $userId, ':date_local' => $dateLocal, ':status' => $status]);
         return (int) $this->pdo->lastInsertId();
     }
 
@@ -322,6 +359,20 @@ class CoordinationQueueTest extends TestCase
             answer_text TEXT NULL,
             created_at TEXT NOT NULL,
             answered_at TEXT NULL
+        )");
+
+        $pdo->exec("CREATE TABLE announcements (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id          INTEGER NOT NULL,
+            date_local       TEXT    NOT NULL,
+            planned_start_at TEXT    NOT NULL,
+            planned_end_at   TEXT    NOT NULL,
+            break_minutes    INTEGER NOT NULL DEFAULT 0,
+            net_minutes      INTEGER NOT NULL,
+            reason           TEXT    NOT NULL,
+            status           TEXT    NOT NULL DEFAULT 'pending_approval',
+            created_at       TEXT    NOT NULL,
+            updated_at       TEXT    NOT NULL
         )");
 
         return $pdo;
