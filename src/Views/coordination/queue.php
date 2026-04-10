@@ -124,13 +124,13 @@ $formatDateTime = static function (string $dt): string {
                             <?= \App\Security\Csrf::inputHtml() ?>
                             <button class="c-btn c-btn--sm c-btn--primary" type="submit">Freigeben</button>
                         </form>
-                        <form method="post" action="/coordination/announcements/<?= $esc($ann['id']) ?>/reject" class="u-inline u-ml-2">
-                            <?= \App\Security\Csrf::inputHtml() ?>
-                            <input class="c-input c-input--sm u-ml-2" type="text" name="rejection_reason"
-                                   placeholder="Begründung (Pflicht)" required minlength="3"
-                                   aria-label="Begründung der Ablehnung">
-                            <button class="c-btn c-btn--sm c-btn--secondary" type="submit">Ablehnen</button>
-                        </form>
+                        <button
+                            class="c-btn c-btn--sm c-btn--secondary u-ml-2"
+                            type="button"
+                            data-reject-id="<?= $esc($ann['id']) ?>"
+                            onclick="openRejectModal(<?= (int) $ann['id'] ?>)">
+                            Ablehnen
+                        </button>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -216,3 +216,53 @@ $formatDateTime = static function (string $dt): string {
         <?php endif; ?>
     </div>
 </div>
+
+<!-- ── Rejection reason modal ─────────────────────────────────────────── -->
+<dialog id="reject-modal" class="c-modal" aria-labelledby="reject-modal-title">
+    <form method="post" id="reject-form">
+        <?= \App\Security\Csrf::inputHtml() ?>
+        <div class="c-modal__header">
+            <h2 class="c-modal__title" id="reject-modal-title">Ankündigung ablehnen</h2>
+            <button type="button" class="c-modal__close" aria-label="Dialog schließen"
+                    onclick="document.getElementById('reject-modal').close()">&#x2715;</button>
+        </div>
+        <div class="c-modal__body">
+            <div class="c-form__group">
+                <label class="c-form__label c-form__label--required" for="rejection_reason">
+                    Begründung der Ablehnung
+                </label>
+                <textarea
+                    class="c-form__textarea"
+                    id="rejection_reason"
+                    name="rejection_reason"
+                    rows="5"
+                    required
+                    minlength="3"
+                    placeholder="Bitte begründen Sie die Ablehnung (mindestens 3 Zeichen)…"
+                    aria-describedby="rejection_reason-hint"></textarea>
+                <span class="c-form__hint" id="rejection_reason-hint">
+                    Die Begründung wird im Audit-Log gespeichert und dem Mitarbeiter kommuniziert.
+                </span>
+            </div>
+        </div>
+        <div class="c-modal__footer">
+            <button type="button" class="c-btn c-btn--secondary"
+                    onclick="document.getElementById('reject-modal').close()">Abbrechen</button>
+            <button type="submit" class="c-btn c-btn--primary">Ablehnen bestätigen</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+function openRejectModal(announcementId) {
+    var modal = document.getElementById('reject-modal');
+    var form  = document.getElementById('reject-form');
+    form.action = '/coordination/announcements/' + announcementId + '/reject';
+    document.getElementById('rejection_reason').value = '';
+    modal.showModal();
+}
+
+document.getElementById('reject-modal').addEventListener('click', function (e) {
+    if (e.target === this) { this.close(); }
+});
+</script>
