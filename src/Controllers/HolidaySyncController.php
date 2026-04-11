@@ -74,8 +74,13 @@ class HolidaySyncController
             return new Response(303, ['Location' => '/admin/settings'], '');
         }
 
-        $repo = new HolidayRepository(Db::pdo());
-        $repo->upsertMany($rows);
+        try {
+            $repo = new HolidayRepository(Db::pdo());
+            $repo->upsertMany($rows);
+        } catch (\Throwable $e) {
+            Flash::addError('Feiertage-Sync fehlgeschlagen: Interner Verarbeitungsfehler.');
+            return new Response(303, ['Location' => '/admin/settings'], '');
+        }
 
         Flash::addSuccess(
             sprintf('Feiertage für %s / %d erfolgreich synchronisiert.', $state, $year)

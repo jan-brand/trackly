@@ -50,6 +50,13 @@ class SettingsDefaultsSeedTest extends TestCase
 
         $this->assertNotFalse($valueJson, 'Key adult.max_daily_regular_minutes must be present');
         $this->assertSame(480, json_decode((string) $valueJson, true));
+
+        $stmt = $this->pdo->prepare('SELECT value_json FROM settings WHERE `key` = :key');
+        $stmt->execute([':key' => 'holiday.default_state']);
+        $holidayDefaultJson = $stmt->fetchColumn();
+
+        $this->assertNotFalse($holidayDefaultJson, 'Key holiday.default_state must be present');
+        $this->assertSame('BE', json_decode((string) $holidayDefaultJson, true));
     }
 
     // -------------------------------------------------------------------------

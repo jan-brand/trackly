@@ -9,7 +9,8 @@ interface HolidayHttpClientInterface
     /**
      * Fetch holidays for a given German state and year from the remote API.
      *
-     * URL pattern: {baseUrl}/{state}/{year}
+      * URL pattern: {baseUrl}?years={year}&states={state}
+      * Optional: {baseUrl}?years={year}&all_states=1
      *
      * @return array<int, array<string, mixed>>
      *

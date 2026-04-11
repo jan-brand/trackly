@@ -149,6 +149,34 @@ class AdminSettingsPostTest extends TestCase
         );
     }
 
+    public function testHolidayDefaultStateIsPersisted(): void
+    {
+        $csrfToken = $this->setCsrfToken();
+        $payload   = $this->buildPayload($csrfToken, 'Default-Bundesland angepasst');
+        $payload['settings']['holiday.default_state'] = 'TH';
+
+        $result = simulateRequest(
+            'POST',
+            '/admin/settings',
+            $payload,
+            [],
+            [
+                'user_id'      => 1,
+                '__user_roles' => ['admin'],
+                '__csrf_token' => $csrfToken,
+            ],
+        );
+
+        $this->assertSame(303, $result['status']);
+
+        $stmt = $this->pdo->prepare('SELECT value_json FROM settings WHERE `key` = :key');
+        $stmt->execute([':key' => 'holiday.default_state']);
+        $valueJson = $stmt->fetchColumn();
+
+        $this->assertNotFalse($valueJson);
+        $this->assertSame('TH', json_decode((string) $valueJson, true));
+    }
+
     /**
      * Two saves must produce two independent audit rows.
      */

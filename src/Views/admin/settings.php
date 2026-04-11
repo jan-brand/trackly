@@ -48,6 +48,11 @@ $bundeslaender = [
     'ST' => 'Sachsen-Anhalt',
     'TH' => 'Thüringen',
 ];
+
+$defaultHolidayState = strtoupper((string) ($values['holiday.default_state'] ?? 'BE'));
+if (!isset($bundeslaender[$defaultHolidayState])) {
+    $defaultHolidayState = 'BE';
+}
 ?>
 <div class="l-section">
     <div class="l-wrapper">
@@ -203,7 +208,7 @@ $bundeslaender = [
                 <select class="c-input" id="holiday-state" name="state" required
                         onchange="holidaySyncUpdateYears()">
                     <?php foreach ($bundeslaender as $code => $name): ?>
-                        <option value="<?= $esc($code) ?>"><?= $esc($name) ?></option>
+                        <option value="<?= $esc($code) ?>"<?= $code === $defaultHolidayState ? ' selected' : '' ?>><?= $esc($name) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -219,7 +224,7 @@ $bundeslaender = [
         <div class="c-modal__footer">
             <button type="button" class="c-btn c-btn--secondary"
                     onclick="document.getElementById('holiday-sync-modal').close()">Abbrechen</button>
-            <button type="submit" class="c-btn c-btn--primary">Importieren</button>
+            <button type="submit" class="c-btn c-btn--primary" id="holiday-sync-submit">Importieren</button>
         </div>
     </form>
 </dialog>
@@ -232,20 +237,43 @@ $bundeslaender = [
     window.holidaySyncUpdateYears = function () {
         var state  = document.getElementById('holiday-state').value;
         var select = document.getElementById('holiday-year');
+        var submit = document.getElementById('holiday-sync-submit');
         var synced = syncedYears[state] || [];
         var current = parseInt(select.value, 10);
+        var firstEnabledYear = null;
 
         select.innerHTML = '';
         yearRange.forEach(function (yr) {
             var option = document.createElement('option');
+            var alreadySynced = synced.indexOf(yr) !== -1;
             option.value       = yr;
-            option.textContent = synced.indexOf(yr) !== -1 ? yr + ' \u2713' : String(yr);
+            option.disabled    = alreadySynced;
+            option.textContent = alreadySynced ? yr + ' (bereits importiert)' : String(yr);
+
+            if (!alreadySynced && firstEnabledYear === null) {
+                firstEnabledYear = yr;
+            }
+
             select.appendChild(option);
         });
 
-        // restore previously selected year if still in range, else default to current year
+        // Restore previous selection if still allowed, otherwise use current year
+        // when available, else the first not-yet-imported year.
         var nowYear = new Date().getFullYear();
-        select.value = (current && yearRange.indexOf(current) !== -1) ? current : nowYear;
+        var currentIsEnabled = current && yearRange.indexOf(current) !== -1 && synced.indexOf(current) === -1;
+        var nowIsEnabled = yearRange.indexOf(nowYear) !== -1 && synced.indexOf(nowYear) === -1;
+
+        if (currentIsEnabled) {
+            select.value = current;
+        } else if (nowIsEnabled) {
+            select.value = nowYear;
+        } else if (firstEnabledYear !== null) {
+            select.value = firstEnabledYear;
+        }
+
+        var hasEnabled = firstEnabledYear !== null;
+        select.disabled = !hasEnabled;
+        submit.disabled = !hasEnabled;
     };
 
     // Initialise on page load

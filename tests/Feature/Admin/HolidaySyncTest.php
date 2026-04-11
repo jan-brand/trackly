@@ -62,7 +62,7 @@ class HolidaySyncTest extends TestCase
         simulateRequest(
             'POST',
             '/admin/holidays/sync',
-            ['csrf_token' => $csrfToken, 'state' => 'BY', 'year' => (string) date('Y')],
+            ['csrf_token' => $csrfToken, 'state' => 'BE', 'year' => (string) date('Y')],
             [],
             [
                 'user_id'      => 1,
@@ -108,7 +108,7 @@ class HolidaySyncTest extends TestCase
             simulateRequest(
                 'POST',
                 '/admin/holidays/sync',
-                ['csrf_token' => $csrfToken, 'state' => 'BY', 'year' => (string) date('Y')],
+                ['csrf_token' => $csrfToken, 'state' => 'BE', 'year' => (string) date('Y')],
                 [],
                 [
                     'user_id'      => 1,
@@ -135,7 +135,7 @@ class HolidaySyncTest extends TestCase
         $result = simulateRequest(
             'POST',
             '/admin/holidays/sync',
-            ['csrf_token' => $csrfToken, 'state' => 'BY', 'year' => (string) date('Y')],
+            ['csrf_token' => $csrfToken, 'state' => 'BE', 'year' => (string) date('Y')],
             [],
             [
                 'user_id'      => 1,
