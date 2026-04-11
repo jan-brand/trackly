@@ -243,6 +243,16 @@ class AdminSettingsAtomicityTest extends TestCase
             )
         ");
 
+        $pdo->exec("
+            CREATE TABLE holidays (
+                date_local        TEXT    NOT NULL,
+                state             TEXT    NOT NULL,
+                name              TEXT    NOT NULL,
+                is_public_holiday INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (date_local, state)
+            )
+        ");
+
         return $pdo;
     }
 

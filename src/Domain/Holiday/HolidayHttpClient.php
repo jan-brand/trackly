@@ -7,16 +7,16 @@ namespace App\Domain\Holiday;
 /**
  * Real HTTP client that fetches holidays from a remote JSON API via cURL.
  *
- * URL pattern: {baseUrl}/{year}
+ * URL pattern: {baseUrl}/{state}/{year}
  *
  * Expected response: JSON array of objects with keys
  *   date_local, state, name, is_public_holiday.
  */
 class HolidayHttpClient implements HolidayHttpClientInterface
 {
-    public function fetchYear(string $baseUrl, int $year, int $timeoutSeconds): array
+    public function fetchYear(string $baseUrl, string $state, int $year, int $timeoutSeconds): array
     {
-        $url = rtrim($baseUrl, '/') . '/' . $year;
+        $url = rtrim($baseUrl, '/') . '/' . rawurlencode($state) . '/' . $year;
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

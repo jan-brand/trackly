@@ -49,7 +49,7 @@ class HolidaySyncTest extends TestCase
         // Mock that always throws a timeout-like exception
         HolidaySyncController::setHttpClient(
             new class implements HolidayHttpClientInterface {
-                public function fetchYear(string $baseUrl, int $year, int $timeoutSeconds): array
+                public function fetchYear(string $baseUrl, string $state, int $year, int $timeoutSeconds): array
                 {
                     throw new HolidaySyncException('Connection timed out.');
                 }
@@ -62,7 +62,7 @@ class HolidaySyncTest extends TestCase
         simulateRequest(
             'POST',
             '/admin/holidays/sync',
-            ['csrf_token' => $csrfToken],
+            ['csrf_token' => $csrfToken, 'state' => 'BY', 'year' => (string) date('Y')],
             [],
             [
                 'user_id'      => 1,
@@ -81,20 +81,20 @@ class HolidaySyncTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // H7.5 – Idempotency: 2 syncs ⇒ count exactly 2 (no duplicates)
+    // H7.5 – Idempotency: 2 syncs ⇒ count exactly 1 (no duplicates)
     // -------------------------------------------------------------------------
 
     public function testTwoSyncsProduceNoDuplicates(): void
     {
-        // Mock returns year-specific holidays so the total across both years is 2 unique rows.
+        // Mock returns one holiday row for the requested year.
         HolidaySyncController::setHttpClient(
             new class implements HolidayHttpClientInterface {
-                public function fetchYear(string $baseUrl, int $year, int $timeoutSeconds): array
+                public function fetchYear(string $baseUrl, string $state, int $year, int $timeoutSeconds): array
                 {
                     return [
                         [
                             'date_local'        => sprintf('%04d-01-01', $year),
-                            'state'             => 'BE',
+                            'state'             => $state,
                             'name'              => 'Neujahr',
                             'is_public_holiday' => 1,
                         ],
@@ -108,7 +108,7 @@ class HolidaySyncTest extends TestCase
             simulateRequest(
                 'POST',
                 '/admin/holidays/sync',
-                ['csrf_token' => $csrfToken],
+                ['csrf_token' => $csrfToken, 'state' => 'BY', 'year' => (string) date('Y')],
                 [],
                 [
                     'user_id'      => 1,
@@ -120,8 +120,8 @@ class HolidaySyncTest extends TestCase
 
         $count = (int) $this->pdo->query('SELECT COUNT(*) FROM holidays')->fetchColumn();
 
-        // current year + next year = exactly 2 unique rows (no duplicates after 2 syncs)
-        $this->assertSame(2, $count, 'Two syncs must produce exactly 2 unique rows.');
+        // Syncing the same state+year twice must yield exactly 1 row.
+        $this->assertSame(1, $count, 'Two syncs of the same state+year must produce exactly 1 unique row.');
     }
 
     // -------------------------------------------------------------------------
@@ -135,7 +135,7 @@ class HolidaySyncTest extends TestCase
         $result = simulateRequest(
             'POST',
             '/admin/holidays/sync',
-            ['csrf_token' => $csrfToken],
+            ['csrf_token' => $csrfToken, 'state' => 'BY', 'year' => (string) date('Y')],
             [],
             [
                 'user_id'      => 1,

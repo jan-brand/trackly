@@ -69,4 +69,28 @@ class HolidayRepository
             throw $e;
         }
     }
+
+    /**
+     * Returns a map of already-synced (state → list of years) combinations.
+     *
+     * Uses SUBSTR(date_local, 1, 4) so it works in both MySQL and SQLite.
+     *
+     * @return array<string, list<int>>  e.g. ['BY' => [2025, 2026], 'BE' => [2026]]
+     */
+    public function getSyncedYears(): array
+    {
+        $stmt = $this->pdo->query(
+            "SELECT state, SUBSTR(date_local, 1, 4) AS yr
+             FROM holidays
+             GROUP BY state, SUBSTR(date_local, 1, 4)
+             ORDER BY state, yr"
+        );
+
+        $result = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $result[$row['state']][] = (int) $row['yr'];
+        }
+
+        return $result;
+    }
 }
