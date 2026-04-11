@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Employee;
 
 use App\Http\ForbiddenException;
+use App\Support\MailSender;
 use PDO;
 
 /**
@@ -34,10 +35,12 @@ final class EmployeeAccountService
     ];
 
     private readonly UserAdminAuditService $audit;
+    private readonly MailSender $mailSender;
 
     public function __construct(private readonly PDO $pdo)
     {
         $this->audit = new UserAdminAuditService($pdo);
+        $this->mailSender = new MailSender();
     }
 
     /**
@@ -50,14 +53,15 @@ final class EmployeeAccountService
                 u.id,
                 u.email,
                 u.is_active,
+                CASE WHEN r.id IS NULL THEN 0 ELSE 1 END AS has_employee_account,
                 ep.display_name,
                 ep.first_name,
                 ep.last_name,
                 ep.expected_graduation_date,
                 ep.contract_type_key
              FROM users u
-             JOIN user_roles ur ON ur.user_id = u.id
-             JOIN roles r ON r.id = ur.role_id AND r.`key` = 'employee'
+             LEFT JOIN user_roles ur ON ur.user_id = u.id
+             LEFT JOIN roles r ON r.id = ur.role_id AND r.`key` = 'employee'
              JOIN employee_profiles ep ON ep.user_id = u.id
              ORDER BY u.email ASC"
         );
@@ -66,19 +70,120 @@ final class EmployeeAccountService
     }
 
     /**
+     * @param array<string, mixed> $fields
+     */
+    public function createEmployeeAccount(int $actorUserId, array $fields): int
+    {
+        $email = (string) ($fields['email'] ?? '');
+        $firstName = (string) ($fields['first_name'] ?? '');
+        $lastName = (string) ($fields['last_name'] ?? '');
+        $createAccount = !empty($fields['create_account']);
+        $contractTypeKey = (string) ($fields['contract_type_key'] ?? '');
+
+        $password = $this->generateInitialPassword();
+
+        $this->pdo->beginTransaction();
+
+        try {
+            $stmt = $this->pdo->prepare('SELECT 1 FROM users WHERE email = :email LIMIT 1');
+            $stmt->execute([':email' => $email]);
+            if ($stmt->fetchColumn() !== false) {
+                throw new \RuntimeException('E-Mail-Adresse ist bereits vergeben.');
+            }
+
+            $hash = password_hash($password, PASSWORD_BCRYPT);
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO users (email, password_hash, is_active) VALUES (:email, :hash, :active)'
+            );
+            $stmt->execute([
+                ':email' => $email,
+                ':hash' => $hash,
+                ':active' => $createAccount ? 1 : 0,
+            ]);
+
+            $userId = (int) $this->pdo->lastInsertId();
+
+            if ($createAccount) {
+                $roleId = $this->resolveRoleId('employee');
+                $stmt = $this->pdo->prepare('INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)');
+                $stmt->execute([
+                    ':user_id' => $userId,
+                    ':role_id' => $roleId,
+                ]);
+            }
+
+            $displayName = trim($firstName . ' ' . $lastName);
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO employee_profiles
+                    (user_id, display_name, first_name, last_name, address_text, study_subjects_text, study_program_text, expected_graduation_date, birth_date, weekly_target_minutes, contract_type_key)
+                 VALUES
+                    (:user_id, :display_name, :first_name, :last_name, NULL, NULL, NULL, NULL, NULL, NULL, :contract_type_key)'
+            );
+            $stmt->execute([
+                ':user_id' => $userId,
+                ':display_name' => $displayName,
+                ':first_name' => $firstName,
+                ':last_name' => $lastName,
+                ':contract_type_key' => $contractTypeKey,
+            ]);
+
+            $this->audit->record(
+                $actorUserId,
+                $userId,
+                'create_employee_account',
+                null,
+                [],
+                [
+                    'email' => $email,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'display_name' => $displayName,
+                    'create_account' => $createAccount,
+                    'contract_type_key' => $contractTypeKey,
+                    'password_hash' => $hash,
+                ]
+            );
+
+            if ($createAccount) {
+                $this->mailSender->send(
+                    $email,
+                    'Dein Trackly-Zugang',
+                    $this->buildInitialPasswordEmail($firstName, $lastName, $password)
+                );
+            }
+
+            $this->pdo->commit();
+
+            return $userId;
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            if ($e instanceof \RuntimeException && $e->getMessage() === 'E-Mail-Adresse ist bereits vergeben.') {
+                throw $e;
+            }
+
+            throw new \RuntimeException('Employee account creation failed: ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function getProfileForView(int $targetUserId, bool $restrictToEmployeeAccount): array
     {
-        if ($restrictToEmployeeAccount && !$this->isEmployeeAccount($targetUserId)) {
-            throw new ForbiddenException('Target account is not an employee account.');
-        }
-
         $stmt = $this->pdo->prepare(
-            'SELECT
+            "SELECT
                 u.id,
                 u.email,
                 u.is_active,
+                CASE WHEN EXISTS (
+                    SELECT 1
+                      FROM user_roles ur
+                      JOIN roles r ON r.id = ur.role_id AND r.`key` = 'employee'
+                     WHERE ur.user_id = u.id
+                ) THEN 1 ELSE 0 END AS has_employee_account,
                 ep.display_name,
                 ep.first_name,
                 ep.last_name,
@@ -89,10 +194,10 @@ final class EmployeeAccountService
                 ep.birth_date,
                 ep.weekly_target_minutes,
                 ep.contract_type_key
-             FROM users u
-             LEFT JOIN employee_profiles ep ON ep.user_id = u.id
-             WHERE u.id = :id
-             LIMIT 1'
+               FROM users u
+               LEFT JOIN employee_profiles ep ON ep.user_id = u.id
+               WHERE u.id = :id
+               LIMIT 1"
         );
         $stmt->execute([':id' => $targetUserId]);
 
@@ -125,10 +230,6 @@ final class EmployeeAccountService
         bool $restrictToEmployeeAccount,
     ): void
     {
-        if ($restrictToEmployeeAccount && !$this->isEmployeeAccount($targetUserId)) {
-            throw new ForbiddenException('Target account is not an employee account.');
-        }
-
         $old = $this->getProfileSnapshot($targetUserId);
         $this->updateEmployeeProfile($targetUserId, $this->filterAllowedFields($fields, self::MANAGEMENT_FIELDS));
         $new = $this->getProfileSnapshot($targetUserId);
@@ -143,7 +244,7 @@ final class EmployeeAccountService
         ?string $reason,
         bool $restrictToEmployeeAccount,
     ): void {
-        if ($restrictToEmployeeAccount && !$this->isEmployeeAccount($targetUserId)) {
+        if (!$this->isEmployeeAccount($targetUserId)) {
             throw new ForbiddenException('Target account is not an employee account.');
         }
 
@@ -174,7 +275,7 @@ final class EmployeeAccountService
         ?string $reason,
         bool $restrictToEmployeeAccount,
     ): void {
-        if ($restrictToEmployeeAccount && !$this->isEmployeeAccount($targetUserId)) {
+        if (!$this->isEmployeeAccount($targetUserId)) {
             throw new ForbiddenException('Target account is not an employee account.');
         }
 
@@ -221,6 +322,39 @@ final class EmployeeAccountService
         $stmt->execute([':id' => $userId]);
 
         return $stmt->fetchColumn() !== false;
+    }
+
+    private function resolveRoleId(string $roleKey): int
+    {
+        $stmt = $this->pdo->prepare('SELECT id FROM roles WHERE `key` = :key LIMIT 1');
+        $stmt->execute([':key' => $roleKey]);
+
+        $roleId = $stmt->fetchColumn();
+        if ($roleId === false) {
+            throw new \RuntimeException('Required role not found: ' . $roleKey);
+        }
+
+        return (int) $roleId;
+    }
+
+    private function generateInitialPassword(): string
+    {
+        return bin2hex(random_bytes(8));
+    }
+
+    private function buildInitialPasswordEmail(string $firstName, string $lastName, string $password): string
+    {
+        $name = trim($firstName . ' ' . $lastName);
+        $salutation = $name !== '' ? 'Hallo ' . $name . ',' : 'Hallo,';
+
+        return implode("\n", [
+            $salutation,
+            '',
+            'für dein Trackly-Konto wurde ein Initial-Passwort angelegt:',
+            $password,
+            '',
+            'Bitte melde dich beim ersten Login an und ändere das Passwort anschließend.',
+        ]);
     }
 
     private function updateEmployeeProfile(int $userId, array $fields): void

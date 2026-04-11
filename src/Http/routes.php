@@ -167,6 +167,14 @@ $router->get('/coordination/employees', function (): Response {
     return (new EmployeeController())->coordinationIndex();
 });
 
+$router->get('/coordination/employees/new', function (): Response {
+    return (new EmployeeController())->coordinationNew();
+});
+
+$router->post('/coordination/employees/new', function (): Response {
+    return (new EmployeeController())->coordinationCreate();
+});
+
 $router->get('/coordination/employees/:id', function (): Response {
     return (new EmployeeController())->coordinationShow();
 });

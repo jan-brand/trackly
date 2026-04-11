@@ -118,6 +118,10 @@ function simulateRequest(
  */
 function dispatch(string $method, string $path, array $post = [], array $session = []): array
 {
+    if (class_exists('App\\Support\\EmailQueue')) {
+        \App\Support\EmailQueue::clear();
+    }
+
     // Snapshot globals so they can be restored after the request.
     $prevServer = $_SERVER;
 

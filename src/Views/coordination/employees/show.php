@@ -72,6 +72,8 @@ $formatDiff = static function (array $diff): string {
             <dd><?= $esc($profile['email'] ?? '') ?></dd>
             <dt>Konto-Status</dt>
             <dd><?= ((int) ($profile['is_active'] ?? 0) === 1) ? 'Aktiv' : 'Inaktiv' ?></dd>
+            <dt>Login</dt>
+            <dd><?= ((int) ($profile['has_employee_account'] ?? 0) === 1) ? 'Vorhanden' : 'Kein Login-Konto' ?></dd>
         </dl>
 
         <div class="u-mb-5">
@@ -203,53 +205,59 @@ $formatDiff = static function (array $diff): string {
             <button class="c-btn c-btn--primary" type="submit">Profil speichern</button>
         </form>
 
-        <h2 class="u-mb-3">Konto verwalten</h2>
-        <form method="post" action="/coordination/employees/<?= $esc($profile['id']) ?>/account" class="u-mb-6">
-            <?= \App\Security\Csrf::inputHtml() ?>
-            <label class="c-label" for="is_active">Konto aktiv</label>
-            <div class="u-mb-4">
-                <input type="hidden" name="is_active" value="0">
-                <input type="checkbox" id="is_active" name="is_active" value="1" <?= ((int) ($profile['is_active'] ?? 0) === 1) ? 'checked' : '' ?>>
+        <?php if ((int) ($profile['has_employee_account'] ?? 0) === 1): ?>
+            <h2 class="u-mb-3">Konto verwalten</h2>
+            <form method="post" action="/coordination/employees/<?= $esc($profile['id']) ?>/account" class="u-mb-6">
+                <?= \App\Security\Csrf::inputHtml() ?>
+                <label class="c-label" for="is_active">Konto aktiv</label>
+                <div class="u-mb-4">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" id="is_active" name="is_active" value="1" <?= ((int) ($profile['is_active'] ?? 0) === 1) ? 'checked' : '' ?>>
+                </div>
+
+                <div class="c-form-group u-mb-4">
+                    <label class="c-label" for="account_reason">Begruendung (Pflicht bei Deaktivierung)</label>
+                    <textarea class="<?= $accountFieldClass('reason') ?>" id="account_reason" name="reason" rows="2"><?= $esc((string) ($accountOld['reason'] ?? '')) ?></textarea>
+                    <?php if (!empty($accountErrors['reason'])): ?>
+                        <ul class="c-field-errors"><?php foreach ($accountErrors['reason'] as $m): ?><li><?= $esc($m) ?></li><?php endforeach; ?></ul>
+                    <?php endif; ?>
+                </div>
+
+                <button class="c-btn c-btn--primary" type="submit">Konto-Status speichern</button>
+            </form>
+
+            <h2 class="u-mb-3">Initial-Passwort setzen</h2>
+            <form method="post" action="/coordination/employees/<?= $esc($profile['id']) ?>/initial-password" novalidate>
+                <?= \App\Security\Csrf::inputHtml() ?>
+
+                <div class="c-form-group u-mb-4">
+                    <label class="c-label" for="new_password">Neues Initial-Passwort</label>
+                    <input class="<?= $passwordFieldClass('new_password') ?>" type="password" id="new_password" name="new_password" value="<?= $esc((string) ($passwordOld['new_password'] ?? '')) ?>" required>
+                    <?php if (!empty($passwordErrors['new_password'])): ?>
+                        <ul class="c-field-errors"><?php foreach ($passwordErrors['new_password'] as $m): ?><li><?= $esc($m) ?></li><?php endforeach; ?></ul>
+                    <?php endif; ?>
+                </div>
+
+                <div class="c-form-group u-mb-4">
+                    <label class="c-label" for="password_reason">Begruendung (optional)</label>
+                    <textarea class="c-input" id="password_reason" name="reason" rows="2"><?= $esc((string) ($passwordOld['reason'] ?? '')) ?></textarea>
+                </div>
+
+                <div class="c-form-group u-mb-4">
+                    <label class="c-label" for="new_password_confirm">Passwort wiederholen</label>
+                    <input class="<?= $passwordFieldClass('new_password_confirm') ?>" type="password" id="new_password_confirm" name="new_password_confirm" value="<?= $esc((string) ($passwordOld['new_password_confirm'] ?? '')) ?>" required>
+                    <?php if (!empty($passwordErrors['new_password_confirm'])): ?>
+                        <ul class="c-field-errors"><?php foreach ($passwordErrors['new_password_confirm'] as $m): ?><li><?= $esc($m) ?></li><?php endforeach; ?></ul>
+                    <?php endif; ?>
+                </div>
+
+                <button class="c-btn c-btn--primary" type="submit">Initial-Passwort setzen</button>
+            </form>
+        <?php else: ?>
+            <div class="c-alert c-alert--info u-mb-6" role="note">
+                Für diesen Mitarbeitenden gibt es aktuell kein Login-Konto.
             </div>
-
-            <div class="c-form-group u-mb-4">
-                <label class="c-label" for="account_reason">Begruendung (Pflicht bei Deaktivierung)</label>
-                <textarea class="<?= $accountFieldClass('reason') ?>" id="account_reason" name="reason" rows="2"><?= $esc((string) ($accountOld['reason'] ?? '')) ?></textarea>
-                <?php if (!empty($accountErrors['reason'])): ?>
-                    <ul class="c-field-errors"><?php foreach ($accountErrors['reason'] as $m): ?><li><?= $esc($m) ?></li><?php endforeach; ?></ul>
-                <?php endif; ?>
-            </div>
-
-            <button class="c-btn c-btn--primary" type="submit">Konto-Status speichern</button>
-        </form>
-
-        <h2 class="u-mb-3">Initial-Passwort setzen</h2>
-        <form method="post" action="/coordination/employees/<?= $esc($profile['id']) ?>/initial-password" novalidate>
-            <?= \App\Security\Csrf::inputHtml() ?>
-
-            <div class="c-form-group u-mb-4">
-                <label class="c-label" for="new_password">Neues Initial-Passwort</label>
-                <input class="<?= $passwordFieldClass('new_password') ?>" type="password" id="new_password" name="new_password" value="<?= $esc((string) ($passwordOld['new_password'] ?? '')) ?>" required>
-                <?php if (!empty($passwordErrors['new_password'])): ?>
-                    <ul class="c-field-errors"><?php foreach ($passwordErrors['new_password'] as $m): ?><li><?= $esc($m) ?></li><?php endforeach; ?></ul>
-                <?php endif; ?>
-            </div>
-
-            <div class="c-form-group u-mb-4">
-                <label class="c-label" for="password_reason">Begruendung (optional)</label>
-                <textarea class="c-input" id="password_reason" name="reason" rows="2"><?= $esc((string) ($passwordOld['reason'] ?? '')) ?></textarea>
-            </div>
-
-            <div class="c-form-group u-mb-4">
-                <label class="c-label" for="new_password_confirm">Passwort wiederholen</label>
-                <input class="<?= $passwordFieldClass('new_password_confirm') ?>" type="password" id="new_password_confirm" name="new_password_confirm" value="<?= $esc((string) ($passwordOld['new_password_confirm'] ?? '')) ?>" required>
-                <?php if (!empty($passwordErrors['new_password_confirm'])): ?>
-                    <ul class="c-field-errors"><?php foreach ($passwordErrors['new_password_confirm'] as $m): ?><li><?= $esc($m) ?></li><?php endforeach; ?></ul>
-                <?php endif; ?>
-            </div>
-
-            <button class="c-btn c-btn--primary" type="submit">Initial-Passwort setzen</button>
-        </form>
+        <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>

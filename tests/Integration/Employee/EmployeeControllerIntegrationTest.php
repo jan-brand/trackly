@@ -211,6 +211,124 @@ class EmployeeControllerIntegrationTest extends TestCase
         $this->assertSame(403, $result['status']);
     }
 
+    public function testCoordinationEmployeesNewShowsForm(): void
+    {
+        $coordinationId = $this->createUser('coord-new@example.com', 'coordination');
+        $this->assignRole($coordinationId, 'coordination');
+
+        $result = dispatch(
+            'GET',
+            '/coordination/employees/new',
+            [],
+            [
+                'user_id' => $coordinationId,
+                '__user_roles' => ['coordination'],
+            ],
+        );
+
+        $this->assertSame(200, $result['status']);
+        $this->assertStringContainsString('Neues Mitarbeitenden-Konto', $result['body']);
+    }
+
+    public function testCoordinationCanCreateEmployeeAccount(): void
+    {
+        $coordinationId = $this->createUser('coord-create@example.com', 'coordination');
+        $this->assignRole($coordinationId, 'coordination');
+
+        $this->createRole('employee');
+
+        $token = 'token-new-1';
+
+        $result = dispatch(
+            'POST',
+            '/coordination/employees/new',
+            [
+                'email' => 'created@example.com',
+                'first_name' => 'Max',
+                'last_name' => 'Mustermann',
+                'contract_type_key' => 'werkstudent',
+                'csrf_token' => $token,
+                'create_account' => '1',
+            ],
+            [
+                'user_id' => $coordinationId,
+                '__user_roles' => ['coordination'],
+                '__csrf_token' => $token,
+            ],
+        );
+
+        $this->assertSame(303, $result['status']);
+        $createdUserId = (int) $this->pdo->query('SELECT id FROM users WHERE email = "created@example.com"')->fetchColumn();
+        $this->assertGreaterThan(0, $createdUserId);
+        $this->assertSame('/coordination/employees/' . $createdUserId, $result['headers']['Location'] ?? null);
+
+        $row = $this->pdo->query('SELECT email, is_active FROM users WHERE email = "created@example.com"')->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('created@example.com', $row['email']);
+        $this->assertSame(1, (int) $row['is_active']);
+
+        $profile = $this->pdo->query('SELECT contract_type_key FROM employee_profiles WHERE user_id = ' . $createdUserId)->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('werkstudent', $profile['contract_type_key']);
+
+        $roles = $this->pdo->query(
+            'SELECT r.`key`
+               FROM roles r
+               JOIN user_roles ur ON ur.role_id = r.id
+              WHERE ur.user_id = ' . $createdUserId
+        )->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertContains('employee', $roles);
+
+        $auditAction = $this->pdo->query('SELECT action FROM user_admin_audit_log ORDER BY id DESC LIMIT 1')->fetchColumn();
+        $this->assertSame('create_employee_account', $auditAction);
+
+        $emails = \App\Support\EmailQueue::all();
+        $this->assertCount(1, $emails);
+        $this->assertSame('created@example.com', $emails[0]['to']);
+        $this->assertSame('Dein Trackly-Zugang', $emails[0]['subject']);
+        $this->assertStringContainsString('Initial-Passwort', $emails[0]['body']);
+    }
+
+    public function testCoordinationCanCreateEmployeeWithoutLoginAccount(): void
+    {
+        $coordinationId = $this->createUser('coord-no-login@example.com', 'coordination');
+        $this->assignRole($coordinationId, 'coordination');
+
+        $token = 'token-new-2';
+
+        $result = dispatch(
+            'POST',
+            '/coordination/employees/new',
+            [
+                'email' => 'no-login@example.com',
+                'first_name' => 'Ohne',
+                'last_name' => 'Konto',
+                'contract_type_key' => 'minijob',
+                'csrf_token' => $token,
+                'create_account' => '0',
+            ],
+            [
+                'user_id' => $coordinationId,
+                '__user_roles' => ['coordination'],
+                '__csrf_token' => $token,
+            ],
+        );
+
+        $this->assertSame(303, $result['status']);
+        $createdUserId = (int) $this->pdo->query('SELECT id FROM users WHERE email = "no-login@example.com"')->fetchColumn();
+        $this->assertGreaterThan(0, $createdUserId);
+
+        $isActive = (int) $this->pdo->query('SELECT is_active FROM users WHERE id = ' . $createdUserId)->fetchColumn();
+        $this->assertSame(0, $isActive);
+
+        $profile = $this->pdo->query('SELECT contract_type_key FROM employee_profiles WHERE user_id = ' . $createdUserId)->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('minijob', $profile['contract_type_key']);
+
+        $roleCount = (int) $this->pdo->query('SELECT COUNT(*) FROM user_roles WHERE user_id = ' . $createdUserId)->fetchColumn();
+        $this->assertSame(0, $roleCount);
+
+        $emails = \App\Support\EmailQueue::all();
+        $this->assertCount(0, $emails);
+    }
+
     private function buildSqlitePdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');
@@ -270,6 +388,17 @@ class EmployeeControllerIntegrationTest extends TestCase
         $stmt->execute([
             ':email' => $email,
             ':hash' => password_hash($password, PASSWORD_BCRYPT),
+        ]);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    private function createRole(string $roleKey): int
+    {
+        $stmt = $this->pdo->prepare('INSERT INTO roles (`key`, name) VALUES (:key, :name)');
+        $stmt->execute([
+            ':key' => $roleKey,
+            ':name' => $roleKey,
         ]);
 
         return (int) $this->pdo->lastInsertId();

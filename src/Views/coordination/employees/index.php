@@ -27,7 +27,10 @@ $displayName = static function (array $row): string {
 ?>
 <div class="l-section">
     <div class="l-wrapper">
-        <h1 class="u-mb-4">Mitarbeitende und Konten</h1>
+        <div class="u-flex u-flex-between u-mb-4">
+            <h1>Mitarbeitende und Konten</h1>
+            <a class="c-btn c-btn--primary c-btn--sm" href="/coordination/employees/new">Neues Konto</a>
+        </div>
 
         <?php if (empty($employees)): ?>
             <p>Keine Mitarbeitenden-Konten vorhanden.</p>
@@ -38,6 +41,7 @@ $displayName = static function (array $row): string {
                         <th>Name</th>
                         <th>E-Mail</th>
                         <th>Status</th>
+                        <th>Konto</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -47,6 +51,7 @@ $displayName = static function (array $row): string {
                             <td><?= $esc($displayName($row)) ?></td>
                             <td><?= $esc($row['email']) ?></td>
                             <td><?= ((int) ($row['is_active'] ?? 0) === 1) ? 'Aktiv' : 'Inaktiv' ?></td>
+                            <td><?= ((int) ($row['has_employee_account'] ?? 0) === 1) ? 'Mit Login' : 'Ohne Login' ?></td>
                             <td><a class="c-btn c-btn--secondary c-btn--sm" href="/coordination/employees/<?= $esc($row['id']) ?>">Bearbeiten</a></td>
                         </tr>
                     <?php endforeach; ?>

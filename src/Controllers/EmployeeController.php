@@ -15,6 +15,13 @@ use App\Support\Flash;
 
 final class EmployeeController
 {
+    private const EMPLOYMENT_TYPE_OPTIONS = [
+        'minijob' => 'Minijob',
+        'werkstudent' => 'Werkstudent',
+        'teilzeit' => 'Teilzeit',
+        'vollzeit' => 'Vollzeit',
+    ];
+
     private const SELF_SERVICE_FIELDS = [
         'first_name',
         'last_name',
@@ -111,6 +118,61 @@ final class EmployeeController
         ]);
 
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+    }
+
+    public function coordinationNew(): Response
+    {
+        Guard::requireRole(['coordination', 'admin']);
+
+        $body = renderView('coordination/employees/new', [
+            'title' => 'Neues Mitarbeitenden-Konto - Trackly',
+            'errors' => [],
+            'old' => [],
+            'employmentTypes' => self::EMPLOYMENT_TYPE_OPTIONS,
+        ]);
+
+        return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+    }
+
+    public function coordinationCreate(): Response
+    {
+        Csrf::verifyOrFail();
+        Guard::requireRole(['coordination', 'admin']);
+
+        $input = $this->extractNewEmployeeFields();
+        $errors = $this->validateNewEmployeeFields($input);
+
+        $service = new EmployeeAccountService(Db::pdo());
+
+        if (!empty($errors)) {
+            $body = renderView('coordination/employees/new', [
+                'title' => 'Neues Mitarbeitenden-Konto - Trackly',
+                'errors' => $errors,
+                'old' => $input,
+                'employmentTypes' => self::EMPLOYMENT_TYPE_OPTIONS,
+            ]);
+
+            return new Response(422, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+        }
+
+        try {
+            $userId = $service->createEmployeeAccount((int) Auth::userId(), $input);
+        } catch (\RuntimeException $e) {
+            $errors['_global'][] = $e->getMessage();
+
+            $body = renderView('coordination/employees/new', [
+                'title' => 'Neues Mitarbeitenden-Konto - Trackly',
+                'errors' => $errors,
+                'old' => $input,
+                'employmentTypes' => self::EMPLOYMENT_TYPE_OPTIONS,
+            ]);
+
+            return new Response(422, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+        }
+
+        Flash::addSuccess('Mitarbeitenden-Konto erstellt.');
+
+        return new Response(303, ['Location' => '/coordination/employees/' . $userId], '');
     }
 
     public function coordinationShow(): Response
@@ -309,6 +371,44 @@ final class EmployeeController
 
         $reason = trim((string) $_POST['reason']);
         return $reason === '' ? null : $reason;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function extractNewEmployeeFields(): array
+    {
+        return [
+            'email' => trim((string) ($_POST['email'] ?? '')),
+            'first_name' => trim((string) ($_POST['first_name'] ?? '')),
+            'last_name' => trim((string) ($_POST['last_name'] ?? '')),
+            'create_account' => (($_POST['create_account'] ?? '1') === '1'),
+            'contract_type_key' => trim((string) ($_POST['contract_type_key'] ?? '')),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, list<string>>
+     */
+    private function validateNewEmployeeFields(array $input): array
+    {
+        $errors = [];
+
+        if ($input['email'] === '' || !filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email'][] = 'Bitte eine gueltige E-Mail-Adresse angeben.';
+        }
+
+        $this->validateTextRequired($input, 'first_name', 100, $errors);
+        $this->validateTextRequired($input, 'last_name', 100, $errors);
+
+        if (!array_key_exists('contract_type_key', $input) || trim((string) $input['contract_type_key']) === '') {
+            $errors['contract_type_key'][] = 'Bitte eine Anstellungsart auswählen.';
+        } elseif (!array_key_exists(trim((string) $input['contract_type_key']), self::EMPLOYMENT_TYPE_OPTIONS)) {
+            $errors['contract_type_key'][] = 'Bitte eine gültige Anstellungsart auswählen.';
+        }
+
+        return $errors;
     }
 
     /**
