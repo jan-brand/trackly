@@ -3,10 +3,16 @@
 declare(strict_types=1);
 
 /** @var array<string, mixed> $profile */
+/** @var string $activeTab */
 /** @var array<string, list<string>> $profileErrors */
 /** @var array<string, mixed> $profileOld */
+/** @var array<string, list<string>> $accountErrors */
+/** @var array<string, mixed> $accountOld */
 /** @var array<string, list<string>> $passwordErrors */
 /** @var array<string, mixed> $passwordOld */
+/** @var list<array<string, mixed>> $auditRows */
+/** @var int $auditPage */
+/** @var bool $auditHasMore */
 
 $title = $title ?? 'Mitarbeitenden-Konto - Trackly';
 
@@ -18,12 +24,40 @@ $profileFieldClass = static fn(string $field): string =>
 $passwordFieldClass = static fn(string $field): string =>
     'c-input' . (!empty($passwordErrors[$field]) ? ' is-invalid' : '');
 
+$accountFieldClass = static fn(string $field): string =>
+    'c-input' . (!empty($accountErrors[$field]) ? ' is-invalid' : '');
+
 $profileVal = static function (string $field) use ($profileOld, $profile): string {
     if (array_key_exists($field, $profileOld)) {
         return (string) ($profileOld[$field] ?? '');
     }
 
     return (string) ($profile[$field] ?? '');
+};
+
+$activeTab = $activeTab ?? 'profile';
+$auditRows = $auditRows ?? [];
+$auditPage = $auditPage ?? 1;
+$auditHasMore = $auditHasMore ?? false;
+
+$formatDiff = static function (array $diff): string {
+    if (empty($diff)) {
+        return 'Keine geaenderten Felder gespeichert.';
+    }
+
+    $parts = [];
+    foreach ($diff as $field => $change) {
+        if (is_array($change) && isset($change['changed']) && $change['changed'] === true) {
+            $parts[] = $field . ': geaendert';
+            continue;
+        }
+
+        $old = is_array($change) && array_key_exists('old', $change) ? (string) ($change['old'] ?? 'null') : 'null';
+        $new = is_array($change) && array_key_exists('new', $change) ? (string) ($change['new'] ?? 'null') : 'null';
+        $parts[] = $field . ': ' . $old . ' -> ' . $new;
+    }
+
+    return implode('; ', $parts);
 };
 ?>
 <div class="l-section">
@@ -39,6 +73,48 @@ $profileVal = static function (string $field) use ($profileOld, $profile): strin
             <dt>Konto-Status</dt>
             <dd><?= ((int) ($profile['is_active'] ?? 0) === 1) ? 'Aktiv' : 'Inaktiv' ?></dd>
         </dl>
+
+        <div class="u-mb-5">
+            <a class="c-btn c-btn--secondary c-btn--sm" href="/coordination/employees/<?= $esc($profile['id']) ?>?tab=profile">Profil</a>
+            <a class="c-btn c-btn--secondary c-btn--sm" href="/coordination/employees/<?= $esc($profile['id']) ?>?tab=audit">Audit</a>
+        </div>
+
+        <?php if ($activeTab === 'audit'): ?>
+            <h2 class="u-mb-3">Audit</h2>
+
+            <?php if (empty($auditRows)): ?>
+                <p>Keine Audit-Eintraege vorhanden.</p>
+            <?php else: ?>
+                <div class="c-table-wrapper u-mb-4">
+                    <table class="c-table c-table--compact">
+                        <thead>
+                        <tr>
+                            <th scope="col">Zeitpunkt</th>
+                            <th scope="col">Actor</th>
+                            <th scope="col">Action</th>
+                            <th scope="col">Reason</th>
+                            <th scope="col">Aenderungen</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($auditRows as $row): ?>
+                            <tr>
+                                <td><?= $esc((string) ($row['created_at'] ?? '')) ?></td>
+                                <td><?= $esc((string) ($row['actor_display_name'] ?: $row['actor_email'] ?: ('#' . ($row['actor_user_id'] ?? '')))) ?></td>
+                                <td><?= $esc((string) ($row['action'] ?? '')) ?></td>
+                                <td><?= $esc((string) ($row['reason'] ?? '')) ?></td>
+                                <td><?= $esc($formatDiff((array) ($row['diff'] ?? []))) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php if ($auditHasMore): ?>
+                    <a class="c-btn c-btn--secondary c-btn--sm" href="/coordination/employees/<?= $esc($profile['id']) ?>?tab=audit&audit_page=<?= $esc((string) ($auditPage + 1)) ?>">Mehr laden</a>
+                <?php endif; ?>
+            <?php endif; ?>
+        <?php else: ?>
 
         <h2 class="u-mb-3">Profil bearbeiten</h2>
         <form method="post" action="/coordination/employees/<?= $esc($profile['id']) ?>/profile" novalidate class="u-mb-6">
@@ -109,6 +185,14 @@ $profileVal = static function (string $field) use ($profileOld, $profile): strin
             </div>
 
             <div class="c-form-group u-mb-4">
+                <label class="c-label" for="profile_reason">Begruendung (Pflicht bei sensiblen Feldern)</label>
+                <textarea class="<?= $profileFieldClass('reason') ?>" id="profile_reason" name="reason" rows="2"><?= $esc((string) ($profileOld['reason'] ?? '')) ?></textarea>
+                <?php if (!empty($profileErrors['reason'])): ?>
+                    <ul class="c-field-errors"><?php foreach ($profileErrors['reason'] as $m): ?><li><?= $esc($m) ?></li><?php endforeach; ?></ul>
+                <?php endif; ?>
+            </div>
+
+            <div class="c-form-group u-mb-4">
                 <label class="c-label" for="contract_type_key">Vertragstyp</label>
                 <input class="<?= $profileFieldClass('contract_type_key') ?>" type="text" id="contract_type_key" name="contract_type_key" value="<?= $esc($profileVal('contract_type_key')) ?>">
                 <?php if (!empty($profileErrors['contract_type_key'])): ?>
@@ -127,6 +211,15 @@ $profileVal = static function (string $field) use ($profileOld, $profile): strin
                 <input type="hidden" name="is_active" value="0">
                 <input type="checkbox" id="is_active" name="is_active" value="1" <?= ((int) ($profile['is_active'] ?? 0) === 1) ? 'checked' : '' ?>>
             </div>
+
+            <div class="c-form-group u-mb-4">
+                <label class="c-label" for="account_reason">Begruendung (Pflicht bei Deaktivierung)</label>
+                <textarea class="<?= $accountFieldClass('reason') ?>" id="account_reason" name="reason" rows="2"><?= $esc((string) ($accountOld['reason'] ?? '')) ?></textarea>
+                <?php if (!empty($accountErrors['reason'])): ?>
+                    <ul class="c-field-errors"><?php foreach ($accountErrors['reason'] as $m): ?><li><?= $esc($m) ?></li><?php endforeach; ?></ul>
+                <?php endif; ?>
+            </div>
+
             <button class="c-btn c-btn--primary" type="submit">Konto-Status speichern</button>
         </form>
 
@@ -143,6 +236,11 @@ $profileVal = static function (string $field) use ($profileOld, $profile): strin
             </div>
 
             <div class="c-form-group u-mb-4">
+                <label class="c-label" for="password_reason">Begruendung (optional)</label>
+                <textarea class="c-input" id="password_reason" name="reason" rows="2"><?= $esc((string) ($passwordOld['reason'] ?? '')) ?></textarea>
+            </div>
+
+            <div class="c-form-group u-mb-4">
                 <label class="c-label" for="new_password_confirm">Passwort wiederholen</label>
                 <input class="<?= $passwordFieldClass('new_password_confirm') ?>" type="password" id="new_password_confirm" name="new_password_confirm" value="<?= $esc((string) ($passwordOld['new_password_confirm'] ?? '')) ?>" required>
                 <?php if (!empty($passwordErrors['new_password_confirm'])): ?>
@@ -152,5 +250,6 @@ $profileVal = static function (string $field) use ($profileOld, $profile): strin
 
             <button class="c-btn c-btn--primary" type="submit">Initial-Passwort setzen</button>
         </form>
+        <?php endif; ?>
     </div>
 </div>

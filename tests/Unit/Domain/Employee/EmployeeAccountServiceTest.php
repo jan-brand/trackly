@@ -125,14 +125,13 @@ class EmployeeAccountServiceTest extends TestCase
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )');
 
-        $pdo->exec('CREATE TABLE employee_account_audit_log (
+        $pdo->exec('CREATE TABLE user_admin_audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            target_user_id INTEGER NOT NULL,
             actor_user_id INTEGER NOT NULL,
+            target_user_id INTEGER NOT NULL,
             action TEXT NOT NULL,
             reason TEXT NULL,
-            old_json TEXT NULL,
-            new_json TEXT NOT NULL,
+            diff_json TEXT NOT NULL,
             created_at TEXT NOT NULL
         )');
     }

@@ -63,10 +63,10 @@ class EmployeeAccountManagementTest extends TestCase
         $this->assertSame('Neu', (string) $row['first_name']);
         $this->assertSame('1999-01-01', (string) $row['birth_date']);
 
-        $audit = $this->pdo->query('SELECT action FROM employee_account_audit_log ORDER BY id ASC')
+        $audit = $this->pdo->query('SELECT action FROM user_admin_audit_log ORDER BY id ASC')
             ->fetchAll(PDO::FETCH_COLUMN);
 
-        $this->assertSame(['self_service_profile_update'], $audit);
+        $this->assertSame(['self_profile_update'], $audit);
     }
 
     public function testCoordinationCannotSetInitialPasswordForNonEmployeeAccount(): void
@@ -97,7 +97,7 @@ class EmployeeAccountManagementTest extends TestCase
         $afterHash = (string) $this->pdo->query('SELECT password_hash FROM users WHERE id = ' . $targetId)->fetchColumn();
         $this->assertSame($beforeHash, $afterHash);
 
-        $auditCount = (int) $this->pdo->query('SELECT COUNT(*) FROM employee_account_audit_log')->fetchColumn();
+        $auditCount = (int) $this->pdo->query('SELECT COUNT(*) FROM user_admin_audit_log')->fetchColumn();
         $this->assertSame(0, $auditCount);
     }
 
@@ -131,9 +131,9 @@ class EmployeeAccountManagementTest extends TestCase
         $newHash = (string) $this->pdo->query('SELECT password_hash FROM users WHERE id = ' . $targetId)->fetchColumn();
         $this->assertTrue(password_verify('new-secret-123', $newHash));
 
-        $audit = $this->pdo->query('SELECT action FROM employee_account_audit_log ORDER BY id DESC LIMIT 1')
+        $audit = $this->pdo->query('SELECT action FROM user_admin_audit_log ORDER BY id DESC LIMIT 1')
             ->fetchColumn();
-        $this->assertSame('coordination_set_initial_password', $audit);
+        $this->assertSame('set_initial_password', $audit);
     }
 
     public function testCoordinationCanToggleEmployeeAccountActiveStateAndWritesAudit(): void
@@ -150,6 +150,7 @@ class EmployeeAccountManagementTest extends TestCase
             '/coordination/employees/' . $targetId . '/account',
             [
                 'is_active' => '0',
+                'reason' => 'Austritt',
                 'csrf_token' => 'token-4',
             ],
             [
@@ -164,9 +165,77 @@ class EmployeeAccountManagementTest extends TestCase
         $isActive = (int) $this->pdo->query('SELECT is_active FROM users WHERE id = ' . $targetId)->fetchColumn();
         $this->assertSame(0, $isActive);
 
-        $audit = $this->pdo->query('SELECT action FROM employee_account_audit_log ORDER BY id DESC LIMIT 1')
+        $audit = $this->pdo->query('SELECT action FROM user_admin_audit_log ORDER BY id DESC LIMIT 1')
             ->fetchColumn();
-        $this->assertSame('coordination_account_active_update', $audit);
+        $this->assertSame('deactivate_user', $audit);
+
+        $reason = $this->pdo->query('SELECT reason FROM user_admin_audit_log ORDER BY id DESC LIMIT 1')
+            ->fetchColumn();
+        $this->assertSame('Austritt', (string) $reason);
+    }
+
+    public function testCoordinationDeactivateRequiresReason(): void
+    {
+        $coordinationId = $this->createUser('coord4@example.com', 'coord-secret');
+        $targetId = $this->createUser('employee4@example.com', 'old-secret');
+
+        $this->assignRole($coordinationId, 'coordination');
+        $this->assignRole($targetId, 'employee');
+        $this->createProfile($targetId, []);
+
+        $result = dispatch(
+            'POST',
+            '/coordination/employees/' . $targetId . '/account',
+            [
+                'is_active' => '0',
+                'reason' => '',
+                'csrf_token' => 'token-5',
+            ],
+            [
+                'user_id' => $coordinationId,
+                '__user_roles' => ['coordination'],
+                '__csrf_token' => 'token-5',
+            ],
+        );
+
+        $this->assertSame(422, $result['status']);
+        $this->assertSame(1, (int) $this->pdo->query('SELECT is_active FROM users WHERE id = ' . $targetId)->fetchColumn());
+        $this->assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM user_admin_audit_log')->fetchColumn());
+    }
+
+    public function testCoordinationSensitiveProfileUpdateRequiresReason(): void
+    {
+        $coordinationId = $this->createUser('coord5@example.com', 'coord-secret');
+        $targetId = $this->createUser('employee5@example.com', 'old-secret');
+
+        $this->assignRole($coordinationId, 'coordination');
+        $this->assignRole($targetId, 'employee');
+        $this->createProfile($targetId, [
+            'first_name' => 'Alt',
+            'last_name' => 'Name',
+            'birth_date' => '1990-01-01',
+        ]);
+
+        $result = dispatch(
+            'POST',
+            '/coordination/employees/' . $targetId . '/profile',
+            [
+                'first_name' => 'Neu',
+                'last_name' => 'Name',
+                'birth_date' => '1991-01-01',
+                'reason' => '',
+                'csrf_token' => 'token-6',
+            ],
+            [
+                'user_id' => $coordinationId,
+                '__user_roles' => ['coordination'],
+                '__csrf_token' => 'token-6',
+            ],
+        );
+
+        $this->assertSame(422, $result['status']);
+        $this->assertSame('1990-01-01', (string) $this->pdo->query('SELECT birth_date FROM employee_profiles WHERE user_id = ' . $targetId)->fetchColumn());
+        $this->assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM user_admin_audit_log')->fetchColumn());
     }
 
     private function buildSqlitePdo(): PDO
@@ -209,14 +278,13 @@ class EmployeeAccountManagementTest extends TestCase
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )');
 
-        $pdo->exec('CREATE TABLE employee_account_audit_log (
+        $pdo->exec('CREATE TABLE user_admin_audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            target_user_id INTEGER NOT NULL,
             actor_user_id INTEGER NOT NULL,
+            target_user_id INTEGER NOT NULL,
             action TEXT NOT NULL,
             reason TEXT NULL,
-            old_json TEXT NULL,
-            new_json TEXT NOT NULL,
+            diff_json TEXT NOT NULL,
             created_at TEXT NOT NULL
         )');
 

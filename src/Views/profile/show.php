@@ -5,6 +5,9 @@ declare(strict_types=1);
 /** @var array<string, mixed> $profile */
 /** @var array<string, list<string>> $errors */
 /** @var array<string, mixed> $old */
+/** @var list<array<string, mixed>> $auditRows */
+/** @var int $auditPage */
+/** @var bool $auditHasMore */
 
 $title = $title ?? 'Mein Profil - Trackly';
 
@@ -19,6 +22,30 @@ $val = static function (string $field) use ($old, $profile): string {
     }
 
     return (string) ($profile[$field] ?? '');
+};
+
+$auditRows = $auditRows ?? [];
+$auditPage = $auditPage ?? 1;
+$auditHasMore = $auditHasMore ?? false;
+
+$formatDiff = static function (array $diff): string {
+    if (empty($diff)) {
+        return 'Keine geaenderten Felder gespeichert.';
+    }
+
+    $parts = [];
+    foreach ($diff as $field => $change) {
+        if (is_array($change) && isset($change['changed']) && $change['changed'] === true) {
+            $parts[] = $field . ': geaendert';
+            continue;
+        }
+
+        $oldValue = is_array($change) && array_key_exists('old', $change) ? (string) ($change['old'] ?? 'null') : 'null';
+        $newValue = is_array($change) && array_key_exists('new', $change) ? (string) ($change['new'] ?? 'null') : 'null';
+        $parts[] = $field . ': ' . $oldValue . ' -> ' . $newValue;
+    }
+
+    return implode('; ', $parts);
 };
 ?>
 <div class="l-section">
@@ -80,5 +107,37 @@ $val = static function (string $field) use ($old, $profile): string {
 
             <button class="c-btn c-btn--primary" type="submit">Profil speichern</button>
         </form>
+
+        <h2 class="u-mt-6 u-mb-3">Audit</h2>
+        <?php if (empty($auditRows)): ?>
+            <p>Keine Audit-Eintraege vorhanden.</p>
+        <?php else: ?>
+            <div class="c-table-wrapper u-mb-4">
+                <table class="c-table c-table--compact">
+                    <thead>
+                    <tr>
+                        <th scope="col">Zeitpunkt</th>
+                        <th scope="col">Action</th>
+                        <th scope="col">Reason</th>
+                        <th scope="col">Aenderungen</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($auditRows as $row): ?>
+                        <tr>
+                            <td><?= $esc((string) ($row['created_at'] ?? '')) ?></td>
+                            <td><?= $esc((string) ($row['action'] ?? '')) ?></td>
+                            <td><?= $esc((string) ($row['reason'] ?? '')) ?></td>
+                            <td><?= $esc($formatDiff((array) ($row['diff'] ?? []))) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <?php if ($auditHasMore): ?>
+                <a class="c-btn c-btn--secondary c-btn--sm" href="/profile?audit_page=<?= $esc((string) ($auditPage + 1)) ?>">Mehr laden</a>
+            <?php endif; ?>
+        <?php endif; ?>
     </div>
 </div>

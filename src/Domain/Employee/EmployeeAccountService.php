@@ -33,7 +33,12 @@ final class EmployeeAccountService
         'contract_type_key',
     ];
 
-    public function __construct(private readonly PDO $pdo) {}
+    private readonly UserAdminAuditService $audit;
+
+    public function __construct(private readonly PDO $pdo)
+    {
+        $this->audit = new UserAdminAuditService($pdo);
+    }
 
     /**
      * @return list<array<string, mixed>>
@@ -109,10 +114,16 @@ final class EmployeeAccountService
         $this->updateEmployeeProfile($actorUserId, $this->filterAllowedFields($fields, self::SELF_SERVICE_FIELDS));
         $new = $this->getProfileSnapshot($actorUserId);
 
-        $this->appendAudit($actorUserId, $actorUserId, 'self_service_profile_update', null, $old, $new);
+        $this->audit->record($actorUserId, $actorUserId, 'self_profile_update', null, $old, $new);
     }
 
-    public function updateManagedProfile(int $actorUserId, int $targetUserId, array $fields, bool $restrictToEmployeeAccount): void
+    public function updateManagedProfile(
+        int $actorUserId,
+        int $targetUserId,
+        array $fields,
+        ?string $reason,
+        bool $restrictToEmployeeAccount,
+    ): void
     {
         if ($restrictToEmployeeAccount && !$this->isEmployeeAccount($targetUserId)) {
             throw new ForbiddenException('Target account is not an employee account.');
@@ -122,13 +133,14 @@ final class EmployeeAccountService
         $this->updateEmployeeProfile($targetUserId, $this->filterAllowedFields($fields, self::MANAGEMENT_FIELDS));
         $new = $this->getProfileSnapshot($targetUserId);
 
-        $this->appendAudit($actorUserId, $targetUserId, 'coordination_profile_update', null, $old, $new);
+        $this->audit->record($actorUserId, $targetUserId, 'admin_profile_update', $reason, $old, $new);
     }
 
     public function updateManagedAccountActiveState(
         int $actorUserId,
         int $targetUserId,
         bool $isActive,
+        ?string $reason,
         bool $restrictToEmployeeAccount,
     ): void {
         if ($restrictToEmployeeAccount && !$this->isEmployeeAccount($targetUserId)) {
@@ -145,11 +157,11 @@ final class EmployeeAccountService
 
         $new = $this->getAccountSnapshot($targetUserId);
 
-        $this->appendAudit(
+        $this->audit->record(
             $actorUserId,
             $targetUserId,
-            'coordination_account_active_update',
-            null,
+            $isActive ? 'activate_user' : 'deactivate_user',
+            $reason,
             $old,
             $new,
         );
@@ -159,13 +171,14 @@ final class EmployeeAccountService
         int $actorUserId,
         int $targetUserId,
         string $newPassword,
+        ?string $reason,
         bool $restrictToEmployeeAccount,
     ): void {
         if ($restrictToEmployeeAccount && !$this->isEmployeeAccount($targetUserId)) {
             throw new ForbiddenException('Target account is not an employee account.');
         }
 
-        $old = $this->getAccountSnapshot($targetUserId);
+        $old = $this->getPasswordSnapshot($targetUserId);
 
         $hash = password_hash($newPassword, PASSWORD_BCRYPT);
         $stmt = $this->pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id');
@@ -174,16 +187,24 @@ final class EmployeeAccountService
             ':id' => $targetUserId,
         ]);
 
-        $new = $this->getAccountSnapshot($targetUserId);
+        $new = $this->getPasswordSnapshot($targetUserId);
 
-        $this->appendAudit(
+        $this->audit->record(
             $actorUserId,
             $targetUserId,
-            'coordination_set_initial_password',
-            'Initial password set',
+            'set_initial_password',
+            $reason,
             $old,
             $new,
         );
+    }
+
+    /**
+     * @return array{rows: list<array<string, mixed>>, has_more: bool}
+     */
+    public function listAuditEntries(int $targetUserId, int $limit, int $offset): array
+    {
+        return $this->audit->listForTarget($targetUserId, $limit, $offset);
     }
 
     public function isEmployeeAccount(int $userId): bool
@@ -312,32 +333,18 @@ final class EmployeeAccountService
     }
 
     /**
-     * @param array<string, mixed> $old
-     * @param array<string, mixed> $new
+     * @return array<string, mixed>
      */
-    private function appendAudit(
-        int $actorUserId,
-        int $targetUserId,
-        string $action,
-        ?string $reason,
-        array $old,
-        array $new,
-    ): void {
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO employee_account_audit_log
-                 (target_user_id, actor_user_id, action, reason, old_json, new_json, created_at)
-             VALUES
-                 (:target, :actor, :action, :reason, :old_json, :new_json, :created_at)'
-        );
+    private function getPasswordSnapshot(int $userId): array
+    {
+        $stmt = $this->pdo->prepare('SELECT id, password_hash FROM users WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $userId]);
 
-        $stmt->execute([
-            ':target' => $targetUserId,
-            ':actor' => $actorUserId,
-            ':action' => $action,
-            ':reason' => $reason,
-            ':old_json' => json_encode($old, JSON_THROW_ON_ERROR),
-            ':new_json' => json_encode($new, JSON_THROW_ON_ERROR),
-            ':created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-        ]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row === false) {
+            throw new ForbiddenException('Account not found.');
+        }
+
+        return $row;
     }
 }

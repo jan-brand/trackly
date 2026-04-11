@@ -79,8 +79,8 @@ class EmployeeControllerIntegrationTest extends TestCase
         $this->assertSame('1995-05-05', $row['birth_date']);
         $this->assertSame(600, (int) $row['weekly_target_minutes']);
 
-        $audit = $this->pdo->query('SELECT action FROM employee_account_audit_log ORDER BY id DESC LIMIT 1')->fetchColumn();
-        $this->assertSame('self_service_profile_update', $audit);
+        $audit = $this->pdo->query('SELECT action FROM user_admin_audit_log ORDER BY id DESC LIMIT 1')->fetchColumn();
+        $this->assertSame('self_profile_update', $audit);
     }
 
     public function testEmployeeTriesToDeactivateOwnAccountForbidden(): void
@@ -119,6 +119,7 @@ class EmployeeControllerIntegrationTest extends TestCase
             '/coordination/employees/' . $employeeId . '/account',
             [
                 'is_active' => '0',
+                'reason' => 'Vertragsende',
                 'csrf_token' => 'token-3',
             ],
             [
@@ -182,7 +183,7 @@ class EmployeeControllerIntegrationTest extends TestCase
 
         $this->assertSame(303, $result['status']);
         $this->assertTrue(password_verify('new-secret-123', (string) $this->pdo->query('SELECT password_hash FROM users WHERE id = ' . $employeeId)->fetchColumn()));
-        $this->assertSame('coordination_set_initial_password', $this->pdo->query('SELECT action FROM employee_account_audit_log ORDER BY id DESC LIMIT 1')->fetchColumn());
+        $this->assertSame('set_initial_password', $this->pdo->query('SELECT action FROM user_admin_audit_log ORDER BY id DESC LIMIT 1')->fetchColumn());
     }
 
     public function testCoordinationSetInitialPasswordForNonEmployeeForbidden(): void
@@ -250,14 +251,13 @@ class EmployeeControllerIntegrationTest extends TestCase
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )');
 
-        $pdo->exec('CREATE TABLE employee_account_audit_log (
+        $pdo->exec('CREATE TABLE user_admin_audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            target_user_id INTEGER NOT NULL,
             actor_user_id INTEGER NOT NULL,
+            target_user_id INTEGER NOT NULL,
             action TEXT NOT NULL,
             reason TEXT NULL,
-            old_json TEXT NULL,
-            new_json TEXT NOT NULL,
+            diff_json TEXT NOT NULL,
             created_at TEXT NOT NULL
         )');
 

@@ -36,18 +36,31 @@ final class EmployeeController
         'contract_type_key',
     ];
 
+    private const REASON_REQUIRED_FIELDS = [
+        'birth_date',
+        'weekly_target_minutes',
+        'contract_type_key',
+    ];
+
     public function profile(): Response
     {
         Guard::requireRole(['employee']);
 
         $service = new EmployeeAccountService(Db::pdo());
         $profile = $service->getProfileForView((int) Auth::userId(), true);
+        $page = max(1, (int) ($_GET['audit_page'] ?? 1));
+        $limit = 10;
+        $offset = ($page - 1) * $limit;
+        $audit = $service->listAuditEntries((int) Auth::userId(), $limit, $offset);
 
         $body = renderView('profile/show', [
             'title' => 'Mein Profil - Trackly',
             'profile' => $profile,
             'errors' => [],
             'old' => [],
+            'auditRows' => $audit['rows'],
+            'auditPage' => $page,
+            'auditHasMore' => $audit['has_more'],
         ]);
 
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
@@ -71,6 +84,9 @@ final class EmployeeController
                 'profile' => $profile,
                 'errors' => $errors,
                 'old' => $input,
+                'auditRows' => [],
+                'auditPage' => 1,
+                'auditHasMore' => false,
             ]);
 
             return new Response(422, ['Content-Type' => 'text/html; charset=utf-8'], $body);
@@ -104,14 +120,29 @@ final class EmployeeController
         $targetUserId = $this->routeId();
         $service = new EmployeeAccountService(Db::pdo());
         $profile = $service->getProfileForView($targetUserId, !Auth::hasRole('admin'));
+        $activeTab = (string) ($_GET['tab'] ?? 'profile');
+        if ($activeTab !== 'audit') {
+            $activeTab = 'profile';
+        }
+
+        $page = max(1, (int) ($_GET['audit_page'] ?? 1));
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
+        $audit = $service->listAuditEntries($targetUserId, $limit, $offset);
 
         $body = renderView('coordination/employees/show', [
             'title' => 'Mitarbeitenden-Konto - Trackly',
             'profile' => $profile,
+            'activeTab' => $activeTab,
             'profileErrors' => [],
             'profileOld' => [],
+            'accountErrors' => [],
+            'accountOld' => [],
             'passwordErrors' => [],
             'passwordOld' => [],
+            'auditRows' => $audit['rows'],
+            'auditPage' => $page,
+            'auditHasMore' => $audit['has_more'],
         ]);
 
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
@@ -124,7 +155,9 @@ final class EmployeeController
 
         $targetUserId = $this->routeId();
         $input = $this->extractFields(self::MANAGEMENT_FIELDS);
+        $reason = $this->extractReason();
         $errors = $this->validateProfileFields($input, true);
+        $this->validateReasonForSensitiveChanges($input, $reason, $errors);
 
         $service = new EmployeeAccountService(Db::pdo());
 
@@ -134,16 +167,22 @@ final class EmployeeController
             $body = renderView('coordination/employees/show', [
                 'title' => 'Mitarbeitenden-Konto - Trackly',
                 'profile' => $profile,
+                'activeTab' => 'profile',
                 'profileErrors' => $errors,
-                'profileOld' => $input,
+                'profileOld' => array_merge($input, ['reason' => (string) ($reason ?? '')]),
+                'accountErrors' => [],
+                'accountOld' => [],
                 'passwordErrors' => [],
                 'passwordOld' => [],
+                'auditRows' => [],
+                'auditPage' => 1,
+                'auditHasMore' => false,
             ]);
 
             return new Response(422, ['Content-Type' => 'text/html; charset=utf-8'], $body);
         }
 
-        $service->updateManagedProfile((int) Auth::userId(), $targetUserId, $input, !Auth::hasRole('admin'));
+        $service->updateManagedProfile((int) Auth::userId(), $targetUserId, $input, $reason, !Auth::hasRole('admin'));
         Flash::addSuccess('Mitarbeitenden-Profil gespeichert.');
 
         return new Response(303, ['Location' => '/coordination/employees/' . $targetUserId], '');
@@ -156,12 +195,38 @@ final class EmployeeController
 
         $targetUserId = $this->routeId();
         $isActive = (($_POST['is_active'] ?? '0') === '1');
+        $reason = $this->extractReason();
+
+        if (!$isActive && $reason === null) {
+            $service = new EmployeeAccountService(Db::pdo());
+            $profile = $service->getProfileForView($targetUserId, !Auth::hasRole('admin'));
+
+            $body = renderView('coordination/employees/show', [
+                'title' => 'Mitarbeitenden-Konto - Trackly',
+                'profile' => $profile,
+                'activeTab' => 'profile',
+                'profileErrors' => [],
+                'profileOld' => [],
+                'accountErrors' => [
+                    'reason' => ['Bitte Begruendung angeben (Pflicht bei Deaktivierung).'],
+                ],
+                'accountOld' => ['reason' => ''],
+                'passwordErrors' => [],
+                'passwordOld' => [],
+                'auditRows' => [],
+                'auditPage' => 1,
+                'auditHasMore' => false,
+            ]);
+
+            return new Response(422, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+        }
 
         $service = new EmployeeAccountService(Db::pdo());
         $service->updateManagedAccountActiveState(
             (int) Auth::userId(),
             $targetUserId,
             $isActive,
+            $reason,
             !Auth::hasRole('admin'),
         );
 
@@ -178,6 +243,7 @@ final class EmployeeController
         $targetUserId = $this->routeId();
         $password = (string) ($_POST['new_password'] ?? '');
         $confirm = (string) ($_POST['new_password_confirm'] ?? '');
+        $reason = $this->extractReason();
 
         $errors = [];
 
@@ -197,10 +263,16 @@ final class EmployeeController
             $body = renderView('coordination/employees/show', [
                 'title' => 'Mitarbeitenden-Konto - Trackly',
                 'profile' => $profile,
+                'activeTab' => 'profile',
                 'profileErrors' => [],
                 'profileOld' => [],
+                'accountErrors' => [],
+                'accountOld' => [],
                 'passwordErrors' => $errors,
                 'passwordOld' => $_POST,
+                'auditRows' => [],
+                'auditPage' => 1,
+                'auditHasMore' => false,
             ]);
 
             return new Response(422, ['Content-Type' => 'text/html; charset=utf-8'], $body);
@@ -210,6 +282,7 @@ final class EmployeeController
             (int) Auth::userId(),
             $targetUserId,
             $password,
+            $reason,
             !Auth::hasRole('admin'),
         );
 
@@ -226,6 +299,16 @@ final class EmployeeController
         }
 
         return $id;
+    }
+
+    private function extractReason(): ?string
+    {
+        if (!array_key_exists('reason', $_POST)) {
+            return null;
+        }
+
+        $reason = trim((string) $_POST['reason']);
+        return $reason === '' ? null : $reason;
     }
 
     /**
@@ -294,6 +377,20 @@ final class EmployeeController
         }
 
         return $errors;
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @param array<string, list<string>> $errors
+     */
+    private function validateReasonForSensitiveChanges(array $input, ?string $reason, array &$errors): void
+    {
+        foreach (self::REASON_REQUIRED_FIELDS as $field) {
+            if (array_key_exists($field, $input) && $reason === null) {
+                $errors['reason'][] = 'Bitte Begruendung angeben (Pflicht bei sensiblen Feldern).';
+                return;
+            }
+        }
     }
 
     /**
