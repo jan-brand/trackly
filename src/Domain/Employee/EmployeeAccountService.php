@@ -12,6 +12,27 @@ use PDO;
  */
 final class EmployeeAccountService
 {
+    private const SELF_SERVICE_FIELDS = [
+        'first_name',
+        'last_name',
+        'address_text',
+        'study_subjects_text',
+        'study_program_text',
+        'expected_graduation_date',
+    ];
+
+    private const MANAGEMENT_FIELDS = [
+        'first_name',
+        'last_name',
+        'address_text',
+        'study_subjects_text',
+        'study_program_text',
+        'expected_graduation_date',
+        'birth_date',
+        'weekly_target_minutes',
+        'contract_type_key',
+    ];
+
     public function __construct(private readonly PDO $pdo) {}
 
     /**
@@ -85,7 +106,7 @@ final class EmployeeAccountService
         }
 
         $old = $this->getProfileSnapshot($actorUserId);
-        $this->updateEmployeeProfile($actorUserId, $fields);
+        $this->updateEmployeeProfile($actorUserId, $this->filterAllowedFields($fields, self::SELF_SERVICE_FIELDS));
         $new = $this->getProfileSnapshot($actorUserId);
 
         $this->appendAudit($actorUserId, $actorUserId, 'self_service_profile_update', null, $old, $new);
@@ -98,7 +119,7 @@ final class EmployeeAccountService
         }
 
         $old = $this->getProfileSnapshot($targetUserId);
-        $this->updateEmployeeProfile($targetUserId, $fields);
+        $this->updateEmployeeProfile($targetUserId, $this->filterAllowedFields($fields, self::MANAGEMENT_FIELDS));
         $new = $this->getProfileSnapshot($targetUserId);
 
         $this->appendAudit($actorUserId, $targetUserId, 'coordination_profile_update', null, $old, $new);
@@ -183,28 +204,16 @@ final class EmployeeAccountService
 
     private function updateEmployeeProfile(int $userId, array $fields): void
     {
-        $allowed = [
-            'first_name',
-            'last_name',
-            'address_text',
-            'study_subjects_text',
-            'study_program_text',
-            'expected_graduation_date',
-            'birth_date',
-            'weekly_target_minutes',
-            'contract_type_key',
-        ];
-
         $updates = [];
         $params = [':user_id' => $userId];
 
-        foreach ($allowed as $key) {
+        foreach ($fields as $key => $value) {
             if (!array_key_exists($key, $fields)) {
                 continue;
             }
 
             $updates[] = $key . ' = :' . $key;
-            $params[':' . $key] = $fields[$key];
+            $params[':' . $key] = $value;
         }
 
         if (empty($updates)) {
@@ -229,6 +238,24 @@ final class EmployeeAccountService
         $sql = 'UPDATE employee_profiles SET ' . implode(', ', $updates) . ' WHERE user_id = :user_id';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
+    }
+
+    /**
+     * @param array<string, mixed> $fields
+     * @param string[] $allowedFields
+     * @return array<string, mixed>
+     */
+    private function filterAllowedFields(array $fields, array $allowedFields): array
+    {
+        $filtered = [];
+
+        foreach ($allowedFields as $field) {
+            if (array_key_exists($field, $fields)) {
+                $filtered[$field] = $fields[$field];
+            }
+        }
+
+        return $filtered;
     }
 
     /**
