@@ -3,26 +3,33 @@
 declare(strict_types=1);
 
 /**
- * National holidays for Germany (state = 'DE').
- * Idempotent: uses ON DUPLICATE KEY UPDATE to upsert by PK(date, state).
+ * Minimal holiday seed: Neujahr for state BE (Berlin/Brandenburg).
+ * Idempotent: uses ON DUPLICATE KEY UPDATE (MySQL) / ON CONFLICT DO UPDATE (SQLite).
  */
 return function (PDO $pdo): void {
     $holidays = [
-        ['date' => '2026-01-01', 'state' => 'DE', 'name' => 'Neujahr'],
-        ['date' => '2026-04-03', 'state' => 'DE', 'name' => 'Karfreitag'],
-        ['date' => '2026-04-06', 'state' => 'DE', 'name' => 'Ostermontag'],
-        ['date' => '2026-05-01', 'state' => 'DE', 'name' => 'Tag der Arbeit'],
-        ['date' => '2026-05-14', 'state' => 'DE', 'name' => 'Christi Himmelfahrt'],
-        ['date' => '2026-05-25', 'state' => 'DE', 'name' => 'Pfingstmontag'],
-        ['date' => '2026-10-03', 'state' => 'DE', 'name' => 'Tag der Deutschen Einheit'],
-        ['date' => '2026-12-25', 'state' => 'DE', 'name' => '1. Weihnachtstag'],
-        ['date' => '2026-12-26', 'state' => 'DE', 'name' => '2. Weihnachtstag'],
+        ['date_local' => '2026-01-01', 'state' => 'BE', 'name' => 'Neujahr', 'is_public_holiday' => 1],
     ];
 
-    $stmt = $pdo->prepare(
-        'INSERT INTO holidays (`date`, `state`, `name`) VALUES (:date, :state, :name)
-         ON DUPLICATE KEY UPDATE `name` = VALUES(`name`)'
-    );
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+    if ($driver === 'sqlite') {
+        $stmt = $pdo->prepare(
+            'INSERT INTO holidays (date_local, state, name, is_public_holiday)
+             VALUES (:date_local, :state, :name, :is_public_holiday)
+             ON CONFLICT(date_local, state) DO UPDATE SET
+                 name               = excluded.name,
+                 is_public_holiday  = excluded.is_public_holiday'
+        );
+    } else {
+        $stmt = $pdo->prepare(
+            'INSERT INTO holidays (date_local, state, name, is_public_holiday)
+             VALUES (:date_local, :state, :name, :is_public_holiday)
+             ON DUPLICATE KEY UPDATE
+                 name               = VALUES(name),
+                 is_public_holiday  = VALUES(is_public_holiday)'
+        );
+    }
 
     foreach ($holidays as $holiday) {
         $stmt->execute($holiday);

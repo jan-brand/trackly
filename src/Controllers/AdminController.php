@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Db\Db;
+use App\Domain\Holiday\HolidayRepository;
 use App\Domain\Settings\Settings;
 use App\Domain\Settings\SettingsRegistry;
 use App\Domain\Settings\SettingsValidator;
@@ -31,11 +32,14 @@ class AdminController
         $values = $settingsObj->all();
         $meta   = $settingsObj->meta();
 
+        $syncedYears = (new HolidayRepository(Db::pdo()))->getSyncedYears();
+
         $body = renderView('admin/settings', [
-            'values'   => $values,
-            'errors'   => [],
-            'registry' => $registry,
-            'meta'     => $meta,
+            'values'      => $values,
+            'errors'      => [],
+            'registry'    => $registry,
+            'meta'        => $meta,
+            'syncedYears' => $syncedYears,
         ]);
 
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
@@ -74,10 +78,11 @@ class AdminController
                 : new Settings(Db::pdo(), $registry);
 
             $body = renderView('admin/settings', [
-                'values'   => $settingsObj->all(),
-                'errors'   => $errors,
-                'registry' => $registry,
-                'meta'     => $settingsObj->meta(),
+                'values'      => $settingsObj->all(),
+                'errors'      => $errors,
+                'registry'    => $registry,
+                'meta'        => $settingsObj->meta(),
+                'syncedYears' => (new HolidayRepository(Db::pdo()))->getSyncedYears(),
             ]);
 
             return new Response(422, ['Content-Type' => 'text/html; charset=utf-8'], $body);

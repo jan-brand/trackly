@@ -9,6 +9,7 @@ use App\Controllers\ClarificationController;
 use App\Controllers\CoordinationController;
 use App\Controllers\ExportController;
 use App\Controllers\HomeController;
+use App\Controllers\HolidaySyncController;
 use App\Controllers\TimeEntryController;
 use App\Controllers\TimerController;
 use App\Http\BadRequestException;
@@ -43,6 +44,10 @@ $router->get('/admin/settings', function (): Response {
 
 $router->post('/admin/settings', function (): Response {
     return (new AdminController())->saveSettings();
+});
+
+$router->post('/admin/holidays/sync', function (): Response {
+    return (new HolidaySyncController())->sync();
 });
 
 // -------------------------------------------------------------------------

@@ -180,6 +180,17 @@ final class SettingsRegistry
                 min:     0,
                 max:     1440,
             ),
+            // ----------------------------------------------------------------
+            // Holiday sync defaults
+            // ----------------------------------------------------------------
+            new SettingDefinition(
+                key:         'holiday.default_state',
+                type:        'enum',
+                default:     'BE',
+                label:       'Standard-Bundesland für Feiertage-Import',
+                enumOptions: ['BB', 'BE', 'BW', 'BY', 'HB', 'HE', 'HH', 'MV', 'NI', 'NW', 'RP', 'SH', 'SL', 'SN', 'ST', 'TH'],
+                enumLabels:  ['Brandenburg', 'Berlin', 'Baden-Württemberg', 'Bayern', 'Bremen', 'Hessen', 'Hamburg', 'Mecklenburg-Vorpommern', 'Niedersachsen', 'Nordrhein-Westfalen', 'Rheinland-Pfalz', 'Schleswig-Holstein', 'Saarland', 'Sachsen', 'Sachsen-Anhalt', 'Thüringen'],
+            ),
         );
     }
 
