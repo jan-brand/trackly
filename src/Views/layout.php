@@ -31,9 +31,11 @@ $isEmployee  = $loggedIn && Auth::hasRole('employee');
         <ul class="c-nav__links" role="list">
             <?php if ($isEmployee): ?>
                 <li><a class="c-nav__link" href="/timer">Meine Zeiten</a></li>
+                <li><a class="c-nav__link" href="/profile">Mein Profil</a></li>
             <?php endif; ?>
             <?php if ($isAdminOrCo): ?>
                 <li><a class="c-nav__link" href="/coordination/queue">Warteschlange</a></li>
+                <li><a class="c-nav__link" href="/coordination/employees">Mitarbeitende</a></li>
                 <li><a class="c-nav__link" href="/admin/settings">Einstellungen</a></li>
                 <li><a class="c-nav__link" href="/export">Export</a></li>
             <?php endif; ?>
