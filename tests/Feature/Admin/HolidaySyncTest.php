@@ -93,7 +93,7 @@ class HolidaySyncTest extends TestCase
                 {
                     return [
                         [
-                            'date_local'        => $year . '-01-01',
+                            'date_local'        => sprintf('%04d-01-01', $year),
                             'state'             => 'BE',
                             'name'              => 'Neujahr',
                             'is_public_holiday' => 1,
