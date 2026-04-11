@@ -41,6 +41,13 @@ class MigrationRunner
             'INSERT INTO schema_migrations (migration_key, applied_at) VALUES (:key, CURRENT_TIMESTAMP)'
         );
 
+        // If there are no entries in schema_migrations the database is "fresh".
+        // In many MySQL setups DDL statements cause an implicit commit which
+        // makes per-migration transactions unreliable. For a fresh DB we
+        // therefore skip wrapping each migration in its own transaction so
+        // all migrations can be applied in one run without transaction errors.
+        $fresh = $this->pdo->query('SELECT 1 FROM schema_migrations LIMIT 1')->fetchColumn() === false;
+
         $applied = 0;
         $skipped = 0;
 
@@ -59,13 +66,28 @@ class MigrationRunner
                 throw new RuntimeException("Migration {$key} does not return a callable.");
             }
 
-            $this->pdo->beginTransaction();
+            // Only attempt a transaction when this is not a fresh DB. On a
+            // fresh DB many migrations contain DDL which may implicitly
+            // commit and break the transaction. Skipping transactions on a
+            // fresh DB avoids "There is no active transaction" errors.
+            if (!$fresh) {
+                $this->pdo->beginTransaction();
+            }
+
             try {
                 $migration($this->pdo);
                 $insertStmt->execute([':key' => $key]);
-                $this->pdo->commit();
+
+                // Commit only if a transaction is actually active.
+                if ($this->pdo->inTransaction()) {
+                    $this->pdo->commit();
+                }
             } catch (\Throwable $e) {
-                $this->pdo->rollBack();
+                // Roll back only if a transaction is active.
+                if ($this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
+
                 throw new RuntimeException("Migration {$key} failed: " . $e->getMessage(), 0, $e);
             }
 

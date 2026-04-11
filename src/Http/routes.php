@@ -7,6 +7,7 @@ use App\Controllers\AnnouncementController;
 use App\Controllers\AuthController;
 use App\Controllers\ClarificationController;
 use App\Controllers\CoordinationController;
+use App\Controllers\EmployeeController;
 use App\Controllers\ExportController;
 use App\Controllers\HomeController;
 use App\Controllers\HolidaySyncController;
@@ -36,6 +37,14 @@ $router->post('/login', function (): Response {
 
 $router->post('/logout', function (): Response {
     return (new AuthController())->doLogout();
+});
+
+$router->get('/profile', function (): Response {
+    return (new EmployeeController())->profile();
+});
+
+$router->post('/profile', function (): Response {
+    return (new EmployeeController())->saveProfile();
 });
 
 $router->get('/admin/settings', function (): Response {
@@ -152,6 +161,26 @@ $router->post('/coordination/announcements/:id/approve', function (): Response {
 
 $router->post('/coordination/announcements/:id/reject', function (): Response {
     return (new CoordinationController())->rejectAnnouncement();
+});
+
+$router->get('/coordination/employees', function (): Response {
+    return (new EmployeeController())->coordinationIndex();
+});
+
+$router->get('/coordination/employees/:id', function (): Response {
+    return (new EmployeeController())->coordinationShow();
+});
+
+$router->post('/coordination/employees/:id/profile', function (): Response {
+    return (new EmployeeController())->coordinationSaveProfile();
+});
+
+$router->post('/coordination/employees/:id/account', function (): Response {
+    return (new EmployeeController())->coordinationSaveAccount();
+});
+
+$router->post('/coordination/employees/:id/initial-password', function (): Response {
+    return (new EmployeeController())->coordinationSetInitialPassword();
 });
 
 // -------------------------------------------------------------------------
