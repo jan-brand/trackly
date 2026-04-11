@@ -33,6 +33,12 @@ class Env
 
             [$key, $value] = explode('=', $trimmed, 2);
 
+            // Do not overwrite values that were already provided by the
+            // runtime/test environment.
+            if (array_key_exists($key, $_ENV)) {
+                continue;
+            }
+
             if (str_starts_with($value, '"') && str_ends_with($value, '"') && strlen($value) >= 2) {
                 $value = substr($value, 1, -1);
             }
