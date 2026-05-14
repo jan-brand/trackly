@@ -25,7 +25,8 @@ $fieldClass = static fn(string $field): string =>
         </div>
         <?php endif; ?>
 
-        <form method="post" action="/time-entries" novalidate>
+        <div class="c-card u-mb-6">
+        <form class="c-form" method="post" action="/time-entries" novalidate>
             <?= \App\Security\Csrf::inputHtml() ?>
 
             <div class="c-form-group u-mb-4">
@@ -128,5 +129,6 @@ $fieldClass = static fn(string $field): string =>
                 <a class="c-btn c-btn--secondary" href="/time-entries">Abbrechen</a>
             </div>
         </form>
+        </div>
     </div>
 </div>

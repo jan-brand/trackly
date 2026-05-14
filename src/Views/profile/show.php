@@ -54,7 +54,8 @@ $formatDiff = static function (array $diff): string {
 
         <p class="u-mb-5"><?= $esc($profile['email'] ?? '') ?></p>
 
-        <form method="post" action="/profile" novalidate>
+        <div class="c-card u-mb-6">
+        <form class="c-form" method="post" action="/profile" novalidate>
             <?= \App\Security\Csrf::inputHtml() ?>
 
             <div class="c-form-group u-mb-4">
@@ -107,6 +108,7 @@ $formatDiff = static function (array $diff): string {
 
             <button class="c-btn c-btn--primary" type="submit">Profil speichern</button>
         </form>
+        </div>
 
         <h2 class="u-mt-6 u-mb-3">Audit</h2>
         <?php if (empty($auditRows)): ?>

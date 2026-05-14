@@ -71,6 +71,59 @@
   min-width: 0;
 }
 
+/* Fixed, persistent sidebar for desktop (compact by default) */
+:root {
+  --sidebar-width: 220px; /* open: ~150-250px (user preference) */
+  --sidebar-compact-width: 64px; /* closed: ~50-75px (user preference) */
+  --sidebar-slide-offset: 8px; /* slight translate when compacting */
+  --duration-base: 0.22s;
+  --duration-fast: 0.12s;
+  --easing-standard: cubic-bezier(.2,.9,.2,1);
+}
+
+.l-sidebar__aside {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100dvh;
+  padding: var(--space-6) var(--space-4);
+  background-color: var(--color-neutral-50);
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+  z-index: var(--z-base);
+  transition: width var(--duration-base) var(--easing-standard), transform var(--duration-base) var(--easing-standard);
+}
+
+.l-sidebar__main {
+  margin-left: var(--sidebar-width);
+  transition: margin-left var(--duration-base) var(--easing-standard);
+}
+
+body.sidebar-compact .l-sidebar__aside {
+  width: var(--sidebar-compact-width);
+  padding: var(--space-4) var(--space-2);
+  transform: translateX(calc(-1 * var(--sidebar-slide-offset)));
+}
+
+body.sidebar-compact .l-sidebar__main {
+  margin-left: var(--sidebar-compact-width);
+}
+
+/* When set during initial render, remove transitions so the sidebar doesn't animate
+   into its stored state on full page navigation. Removed after first paint by JS. */
+body.disable-sidebar-transitions .l-sidebar__aside,
+body.disable-sidebar-transitions .l-sidebar__main,
+body.disable-sidebar-transitions .c-sidebar-toggle {
+  transition: none !important;
+}
+
+/* Responsive: hide sidebar on small viewports */
+@media (max-width: 720px) {
+  .l-sidebar__aside { display: none; position: static; transform: none; }
+  .l-sidebar__main  { margin-left: 0; }
+}
+
 /* ── l-page ── full page shell ───────────────────────── */
 
 .l-page {
@@ -155,6 +208,18 @@
   background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
+}
+
+/* Sticky header for app-feel */
+.l-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+/* Responsive: collapse sidebar on small viewports */
+@media (max-width: 720px) {
+  .l-sidebar__aside { display: none; }
 }
 
 .l-footer {

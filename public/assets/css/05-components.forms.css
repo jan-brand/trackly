@@ -10,6 +10,24 @@
   gap: var(--space-5);
 }
 
+/* Compatibility aliases for legacy class names used in Views
+   Many Views use `c-form-group`, `c-label`, and `c-input` variants.
+   Keep these mappings so we can migrate Views gradually without visual regressions. */
+.c-form__group,
+.c-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.c-form__label,
+.c-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+
 /* ── Form group: label + control ─────────────────────── */
 
 .c-form__group {
@@ -46,9 +64,19 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* Backwards-compatible inline field error lists used in Views */
+.c-field-errors {
+  margin: 0;
+  padding-left: 1rem;
+  margin-top: var(--space-2);
+  color: var(--color-danger-700);
+  font-size: var(--font-size-sm);
+}
+
 /* ── Controls: input, select, textarea ───────────────── */
 
 .c-form__input,
+.c-input,
 .c-form__select,
 .c-form__textarea,
 input[type="text"],
@@ -79,6 +107,7 @@ textarea {
 }
 
 .c-form__input:hover,
+.c-input:hover,
 .c-form__select:hover,
 .c-form__textarea:hover,
 input[type="text"]:hover,
@@ -96,6 +125,7 @@ textarea:hover {
 }
 
 .c-form__input:focus,
+.c-input:focus,
 .c-form__select:focus,
 .c-form__textarea:focus,
 input[type="text"]:focus,
@@ -117,12 +147,14 @@ textarea:focus {
 /* ── Error state ──────────────────────────────────────── */
 
 .c-form__input.is-invalid,
+.c-input.is-invalid,
 .c-form__select.is-invalid,
 .c-form__textarea.is-invalid {
   border-color: var(--color-danger-500);
 }
 
 .c-form__input.is-invalid:focus,
+.c-input.is-invalid:focus,
 .c-form__select.is-invalid:focus,
 .c-form__textarea.is-invalid:focus {
   box-shadow: 0 0 0 var(--focus-ring-width) color-mix(in srgb, var(--color-danger-500) 25%, transparent);

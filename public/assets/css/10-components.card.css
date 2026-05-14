@@ -1,0 +1,40 @@
+/*
+ * 10-components.card.css – Card surfaces used to contain forms and panels
+ */
+
+/* Basic card surface */
+.c-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
+}
+
+.c-card--narrow {
+  max-width: 56rem;
+  margin-inline: auto;
+}
+
+.c-card--center {
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.c-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+/* Ensure forms inside cards get reasonable spacing */
+.c-card .c-form {
+  gap: var(--space-4);
+}
+
+/* Subtle responsive tweaks */
+@media (max-width: 720px) {
+  .c-card { padding: var(--space-4); }
+}
+*** End Patch
